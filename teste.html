@@ -624,8 +624,11 @@ html.pwa .wrap{position:fixed;top:0;bottom:0;left:0;right:0;overflow-y:auto;over
 
 .relper{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
 .relper .seg{display:inline-flex;background:var(--surface2);border-radius:12px;padding:3px;gap:3px}
-.relper .seg button{border:0;background:none;color:var(--muted);font:inherit;font-weight:700;padding:8px 16px;border-radius:9px;cursor:pointer}
+.relper .seg button{border:0;background:none;color:var(--muted);font:inherit;font-weight:700;padding:8px 12px;border-radius:9px;cursor:pointer}
 .relper .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink,inherit);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.relpers{display:flex;flex-direction:column;gap:8px;width:100%}
+.relpers label{display:flex;align-items:center;gap:10px;font-weight:700}
+.relpers input[type=date]{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:10px;padding:9px 12px;font:inherit;font-size:16px}
 .relnav{display:flex;align-items:center;gap:8px;font-weight:700}
 .relnav button{min-width:40px;padding:6px 10px;font-size:20px;line-height:1}
 .relnav button[disabled]{opacity:.35}
@@ -1558,8 +1561,8 @@ function relSetNota(v){ S.relNotaMem = v; try{ localStorage.setItem(relNotaKey()
 function relDados(){
   const RP = relPeriodo(), per = RP.per, all = RP.all, dates = RP.dates, n = all.length, d0 = parse(all[0]), td = today();
   const s = stats(dates.length ? dates : all), nome = (S.cli && S.cli.nome) || (S.user && S.user.email) || '';
-  const mes = per === 'sem' ? 'semana de ' + relIntervalo(all[0], all[n - 1]) : d0.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  const noP = per === 'sem' ? 'na semana' : 'no mês', iniP = per === 'sem' ? 'Início da semana' : 'Início do mês';
+  const mes = per === 'sem' ? 'semana de ' + relIntervalo(all[0], all[n - 1]) : per === 'pers' ? 'período de ' + relIntervalo(all[0], all[n - 1]) : d0.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const noP = per === 'sem' ? 'na semana' : per === 'pers' ? 'no período' : 'no mês', iniP = per === 'sem' ? 'Início da semana' : per === 'pers' ? 'Início do período' : 'Início do mês';
   const P = S.prof || {}, ini = dates[0] || all[0], fim = dates[dates.length - 1] || all[all.length - 1];
   const reg = s.logged.length, pctPlano = s.mealsTot ? Math.round(s.mealsOk / s.mealsTot * 100) : 0;
   const pesoMes = weightList().filter(x => x.d >= ini && x.d <= fim), pesoAntes = weightList().filter(x => x.d < ini).pop();
@@ -1581,16 +1584,18 @@ function relDados(){
 }
 function relView(){
   const D = relDados(), {per, all, dates, n, s, nome, mes, noP, iniP, P, ini, fim, reg, pctPlano, pesoMes, pIni, pesoPts, porRef, medRows, grp, cargas, nota, geradoEm, kgs, stTxt} = D;
-  let h = `<section class="card noprint" id="view-rel"><div class="thead"><div><h2>Relatório ${per === 'sem' ? 'semanal' : 'mensal'}</h2><div class="sub">Para levar à nutricionista, ao médico ou ao personal.</div></div><button class="ghost" id="rel-back" data-act="relback">Voltar</button></div>
-    <div class="relper"><div class="seg" role="group" aria-label="Período do relatório"><button id="rel-sem" data-act="relper" data-v="sem" aria-pressed="${per === 'sem'}">Semanal</button><button id="rel-mes" data-act="relper" data-v="mes" aria-pressed="${per !== 'sem'}">Mensal</button></div>
-     <div class="relnav"><button class="ghost" id="rel-prev" data-act="relnav" data-d="-1" aria-label="${per === 'sem' ? 'Semana anterior' : 'Mês anterior'}">‹</button><span>${per === 'sem' ? relIntervalo(all[0], all[n - 1], true) : mes}</span><button class="ghost" id="rel-next" data-act="relnav" data-d="1" aria-label="${per === 'sem' ? 'Próxima semana' : 'Próximo mês'}" ${all[n - 1] >= today() ? 'disabled' : ''}>›</button></div></div>
+  let h = `<section class="card noprint" id="view-rel"><div class="thead"><div><h2>Relatório ${per === 'sem' ? 'semanal' : per === 'pers' ? 'personalizado' : 'mensal'}</h2><div class="sub">Para levar à nutricionista, ao médico ou ao personal.</div></div><button class="ghost" id="rel-back" data-act="relback">Voltar</button></div>
+    <div class="relper"><div class="seg" role="group" aria-label="Período do relatório"><button id="rel-sem" data-act="relper" data-v="sem" aria-pressed="${per === 'sem'}">Semanal</button><button id="rel-mes" data-act="relper" data-v="mes" aria-pressed="${per === 'mes'}">Mensal</button><button id="rel-pers" data-act="relper" data-v="pers" aria-pressed="${per === 'pers'}">Personalizado</button></div>
+     ${per === 'pers' ? `<div class="relpers"><label>De<input type="date" id="rel-ini" value="${all[0]}" max="${today()}"></label><label>Até<input type="date" id="rel-fim" value="${all[n - 1]}" max="${today()}"></label>
+      <div class="opts" role="group" aria-label="Atalhos de período"><button class="chip" data-act="relrap" data-v="plano">Desde o início do plano</button><button class="chip" data-act="relrap" data-v="30">Últimos 30 dias</button><button class="chip" data-act="relrap" data-v="90">Últimos 90 dias</button></div>
+      <p class="sub" style="margin:2px 0 0">${n} dia${n > 1 ? 's' : ''}: ${relIntervalo(all[0], all[n - 1])}. Máximo de ${REL_MAX_DIAS} dias.</p></div>` : `<div class="relnav"><button class="ghost" id="rel-prev" data-act="relnav" data-d="-1" aria-label="${per === 'sem' ? 'Semana anterior' : 'Mês anterior'}">‹</button><span>${per === 'sem' ? relIntervalo(all[0], all[n - 1], true) : mes}</span><button class="ghost" id="rel-next" data-act="relnav" data-d="1" aria-label="${per === 'sem' ? 'Próxima semana' : 'Próximo mês'}" ${all[n - 1] >= today() ? 'disabled' : ''}>›</button></div>`}</div>
     ${relImgBox()}
     <label class="sub" for="rel-nota" style="font-weight:700;display:block;margin-top:10px">Observações para o profissional (opcional)</label>
     <textarea id="rel-nota" class="relnota" placeholder="Ex.: senti mais fome à noite; dor no joelho na semana 2; viajei de 10 a 13.">${esc(nota)}</textarea>
     ${relPdfBox()}
-    <p class="tip" style="margin:8px 0 0">${dates.length < n ? (per === 'sem' ? 'A semana' : 'O mês') + ' ainda não terminou: o relatório vai até hoje. ' : ''}Abaixo, a versão completa (vai no PDF). No computador, também dá para <button class="linkbtn" data-act="relprint">imprimir</button>.</p></section>
+    <p class="tip" style="margin:8px 0 0">${dates.length < n && per !== 'pers' ? (per === 'sem' ? 'A semana' : 'O mês') + ' ainda não terminou: o relatório vai até hoje. ' : ''}Abaixo, a versão completa (vai no PDF). No computador, também dá para <button class="linkbtn" data-act="relprint">imprimir</button>.</p></section>
   <article class="rep" aria-label="Relatório">
-   <header class="rh"><div><div class="rbrand">CheckFit</div><h1>${per === 'sem' ? 'Relatório semanal' : 'Relatório mensal'} · ${mes}</h1><div class="rmeta">${esc(nome)}${P.idade ? ' · ' + esc(P.idade) + ' anos' : ''}${P.altura ? ' · ' + esc(P.altura) + ' cm' : ''} · ${dCurta(ini)} a ${dCurta(fim)} · gerado em ${geradoEm}</div>
+   <header class="rh"><div><div class="rbrand">CheckFit</div><h1>${per === 'sem' ? 'Relatório semanal' : per === 'pers' ? 'Relatório personalizado' : 'Relatório mensal'} · ${mes}</h1><div class="rmeta">${esc(nome)}${P.idade ? ' · ' + esc(P.idade) + ' anos' : ''}${P.altura ? ' · ' + esc(P.altura) + ' cm' : ''} · ${dCurta(ini)} a ${dCurta(fim)} · gerado em ${geradoEm}</div>
     ${PLANINFO && PLANINFO.nutri ? `<div class="rmeta">Plano alimentar: ${esc(PLANINFO.nutri)}${PLANINFO.data ? ' (' + esc(PLANINFO.data) + ')' : ''}</div>` : ''}${S.treino && S.treino.prof ? `<div class="rmeta">Treino: ${esc(S.treino.prof)}${S.treino.objetivo ? ' · ' + esc(S.treino.objetivo) : ''}</div>` : ''}</div></header>
    <section class="rs"><h2>Resumo</h2><div class="rgrid">
     <div><b>${reg}</b><span>dias registrados de ${dates.length || n}</span></div>
@@ -1760,7 +1765,7 @@ async function relPdf(){
   await new Promise(r => setTimeout(r, 60));
   try{
     const blob = pdfBlob(pdfRender(rep)), d0 = parse(S.date);
-    const nome = S.pdfNome || (S.relPer === 'sem' && S.mode === 'rel' ? 'Relatorio-semanal-CheckFit-' + weekStart(S.date).split('-').reverse().join('-') + '.pdf' : 'Relatorio-CheckFit-' + d0.toLocaleDateString('pt-BR', {month:'long'}) + '-' + d0.getFullYear() + '.pdf').normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const nome = S.pdfNome || (S.relPer === 'pers' && S.mode === 'rel' ? 'Relatorio-CheckFit-' + relPersIntervalo().map(d => d.split('-').reverse().join('-')).join('-a-') + '.pdf' : S.relPer === 'sem' && S.mode === 'rel' ? 'Relatorio-semanal-CheckFit-' + weekStart(S.date).split('-').reverse().join('-') + '.pdf' : 'Relatorio-CheckFit-' + d0.toLocaleDateString('pt-BR', {month:'long'}) + '-' + d0.getFullYear() + '.pdf').normalize('NFD').replace(/[̀-ͯ]/g, '');
     if(S.relPdf && S.relPdf.url) try{ URL.revokeObjectURL(S.relPdf.url); }catch(e){}
     let file = null; try{ file = new File([blob], nome, {type:'application/pdf'}); }catch(e){}
     S.relPdf = {url:URL.createObjectURL(blob), nome, file, kb:Math.round(blob.size / 1024), share:!!(file && navigator.canShare && navigator.canShare({files:[file]}))};
@@ -2804,6 +2809,7 @@ async function loadFull(from){
 }
 /* qual é o dia mais antigo que a tela atual precisa completo */
 function precisaDe(){
+  if(S.mode === 'rel' && S.relPer === 'pers') return relPersIntervalo()[0];
   if(S.mode === 'rel' && S.relPer === 'sem') return weekStart(S.date);
   if(S.mode === 'rel' || (S.mode === 'app' && S.view === 'mes')) return S.date.slice(0, 8) + '01';
   if(S.mode === 'app' && S.view === 'semana') return weekStart(S.date);
@@ -4762,10 +4768,23 @@ function relIntervalo(a, b, curto){
   if(A.getMonth() !== B.getMonth()) return `${A.getDate()} de ${m(A.getMonth())} a ${B.getDate()} de ${m(B.getMonth())} de ${B.getFullYear()}`;
   return `${A.getDate()} a ${B.getDate()} de ${m(B.getMonth())} de ${B.getFullYear()}`;
 }
+const REL_MAX_DIAS = 120;
+/* início do plano: data do peso inicial do perfil, senão o primeiro dia com registro */
+function relInicioPlano(){
+  const P = S.prof || {}; if(P.dini && /^\d{4}-\d{2}-\d{2}$/.test(P.dini)) return P.dini;
+  const ks = Object.keys(S.days || {}).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && temRegistro(S.days[k])).sort(); return ks[0] || addDays(today(), -29);
+}
+function relPersIntervalo(){
+  const td = today(); let a = S.relIni || addDays(td, -29), b = S.relFim || td;
+  if(b > td) b = td; if(a > td) a = td; if(a > b){ const t = a; a = b; b = t; }
+  if(addDays(a, REL_MAX_DIAS - 1) < b) a = addDays(b, -(REL_MAX_DIAS - 1));
+  return [a, b];
+}
 function relPeriodo(){
-  const per = S.relPer === 'sem' ? 'sem' : 'mes', td = today();
+  const per = S.relPer === 'sem' || S.relPer === 'pers' ? S.relPer : 'mes', td = today();
   let all;
-  if(per === 'sem'){ const ws = weekStart(S.date); all = [...Array(7)].map((_, i) => addDays(ws, i)); }
+  if(per === 'pers'){ const [a, b] = relPersIntervalo(); all = []; for(let d = a; d <= b; d = addDays(d, 1)) all.push(d); }
+  else if(per === 'sem'){ const ws = weekStart(S.date); all = [...Array(7)].map((_, i) => addDays(ws, i)); }
   else { const d0 = parse(S.date), y = d0.getFullYear(), mo = d0.getMonth(), n = new Date(y, mo + 1, 0).getDate(); all = [...Array(n)].map((_, i) => ymd(new Date(y, mo, i + 1))); }
   return {per, all, dates:all.filter(d => d <= td)};
 }
@@ -4821,20 +4840,20 @@ async function relImgGerar(D){
   const {s, P, reg, pctPlano, pesoPts, pIni, porRef, grp, cargas, nota, dates, all, per} = D, kgs = v => String(Math.round(v * 10) / 10).replace('.', ',');
   const W = 1080, SC = 2, Hmax = 3600, cv = document.createElement('canvas'); cv.width = W * SC; cv.height = Hmax * SC;
   const x = cv.getContext('2d'); x.scale(SC, SC); x.fillStyle = '#F4F7F9'; x.fillRect(0, 0, W, Hmax);
-  const sem = per === 'sem', ini = all[0], fim = all[all.length - 1], nome = (S.cli && S.cli.nome) || '';
+  const sem = per === 'sem', pers = per === 'pers', ini = all[0], fim = all[all.length - 1], nome = (S.cli && S.cli.nome) || '';
   // ---- cabeçalho
   const hg = x.createLinearGradient(0, 0, W, 0); hg.addColorStop(0, IC.navy); hg.addColorStop(1, IC.navy2); x.fillStyle = hg; x.fillRect(0, 0, W, 150);
   x.fillStyle = 'rgba(34,197,94,.55)'; x.beginPath(); x.moveTo(0, 150); x.quadraticCurveTo(60, 120, 150, 150); x.closePath(); x.fill();
   icLogo(x, 34, 40, 58); icT(x, 'Check', 100, 90, {s:36, w:800, h:1, c:'#fff'}); const cw = x.measureText('Check').width; icT(x, 'Fit', 100 + cw, 90, {s:36, w:800, h:1, c:IC.lime});
   x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(278, 40, 2, 72);
-  icT(x, sem ? 'Relatório Semanal' : 'Relatório Mensal', 300, 78, {s:34, w:800, h:1, c:'#fff', max:420});
-  const subt = sem ? relIntervalo(ini, fim) : (MESES_PT[parse(ini).getMonth()][0].toUpperCase() + MESES_PT[parse(ini).getMonth()].slice(1) + ' de ' + parse(ini).getFullYear());
-  icT(x, subt, 300, 112, {s:sem ? 22 : 26, w:800, h:1, c:IC.lime, max:440});
+  icT(x, sem ? 'Relatório Semanal' : pers ? 'Relatório Personalizado' : 'Relatório Mensal', 300, 78, {s:34, w:800, h:1, c:'#fff', max:420});
+  const subt = sem || pers ? relIntervalo(ini, fim) : (MESES_PT[parse(ini).getMonth()][0].toUpperCase() + MESES_PT[parse(ini).getMonth()].slice(1) + ' de ' + parse(ini).getFullYear());
+  icT(x, subt, 300, 112, {s:sem || pers ? 22 : 26, w:800, h:1, c:IC.lime, max:440});
   x.fillStyle = 'rgba(0,0,0,.28)'; icRR(x, 768, 30, 288, 92, 16); x.fill();
   icEmoji(x, '📅', 800, 76, 30);
   icT(x, 'Período do relatório', 828, 60, {s:15, c:'#D7ECEA'});
   const fimR = dates.length ? dates[dates.length - 1] : fim;
-  icT(x, relIntervalo(ini, fimR, true), 828, 84, {s:17, w:700, c:'#fff', max:220});
+  const dm = d => d.slice(8, 10) + '/' + d.slice(5, 7); icT(x, (ini === fimR ? '' : dm(ini) + ' a ') + dm(fimR) + '/' + fimR.slice(0, 4), 828, 84, {s:17, w:700, c:'#fff', max:220});
   icT(x, 'Gerado em ' + new Date().toLocaleDateString('pt-BR'), 828, 106, {s:13.5, c:'#D7ECEA'});
   // ---- faixa do paciente
   let y = 170; x.fillStyle = '#fff'; icRR(x, 24, y, W - 48, 96, 18); x.fill(); x.strokeStyle = IC.line; x.lineWidth = 1.5; icRR(x, 24, y, W - 48, 96, 18); x.stroke();
@@ -4849,7 +4868,7 @@ async function relImgGerar(D){
   icT(x, pl[0], 524, y + 36, {s:16, w:800}); icT(x, pl[1] + (pl[2] ? ' ' + pl[2] : ''), 524, y + 60, {s:16, max:500});
   if(S.treino && S.treino.prof) icT(x, 'Treino: ' + S.treino.prof, 524, y + 82, {s:14.5, c:IC.mut, max:500});
   // ---- resumo (6 indicadores)
-  y += 118; icEmoji(x, '📊', 46, y + 14, 26); icT(x, sem ? 'Resumo da semana' : 'Resumo do mês', 72, y + 24, {s:25, w:800, h:1, c:IC.dg});
+  y += 118; icEmoji(x, '📊', 46, y + 14, 26); icT(x, sem ? 'Resumo da semana' : pers ? 'Resumo do período' : 'Resumo do mês', 72, y + 24, {s:25, w:800, h:1, c:IC.dg});
   icT(x, 'Visão geral da sua evolução, adesão e principais indicadores.', 72, y + 48, {s:15, c:IC.mut});
   y += 64;
   const tw = (W - 48 - 5 * 12) / 6, th = 132, pctReg = dates.length ? Math.round(reg / dates.length * 100) : 0;
@@ -4874,7 +4893,7 @@ async function relImgGerar(D){
   // ---- peso + destaques
   const dest = relDestaques(D);
   const pesoBloco = {a:Lx, w:Lw, h:pesoPts.length ? 372 : 140, draw:(a, b, w, h) => {
-    const cy0 = rpPanel(x, a, b, w, h, 'Evolução do peso', 'Acompanhe a sua variação ao longo do ' + (sem ? 'período' : 'mês') + '.');
+    const cy0 = rpPanel(x, a, b, w, h, 'Evolução do peso', 'Acompanhe a sua variação ao longo do ' + (per === 'mes' ? 'mês' : 'período') + '.');
     if(!pesoPts.length){ icT(x, 'Nenhuma pesagem registrada ' + D.noP + '.', a + 22, cy0 + 24, {s:16, c:IC.mut}); return; }
     const gx = a + 64, gw = 300, gy = cy0 + 44, gh = 170, vs = pesoPts.map(p => p.v).concat(P.meta ? [+P.meta] : []);
     let lo = Math.min(...vs), hi = Math.max(...vs); if(hi - lo < 2){ lo -= 1; hi += 1; } lo = Math.floor(lo * 2) / 2 - 0.5; hi = Math.ceil(hi * 2) / 2 + 0.5;
@@ -4886,7 +4905,7 @@ async function relImgGerar(D){
     [pesoPts[0], pesoPts[pesoPts.length - 1]].forEach((p, k) => { if(k && pesoPts.length < 2) return; const t = kgs(p.v) + ' kg'; x.font = '700 13px ' + IFB; const tw2 = x.measureText(t).width + 16, px = Math.min(Math.max(X(p.d) - tw2 / 2, gx - 10), gx + gw - tw2 + 10); x.fillStyle = IC.dg; icRR(x, px, Y(p.v) - 34, tw2, 24, 7); x.fill(); icT(x, t, px + tw2 / 2, Y(p.v) - 17, {s:13, w:700, c:'#fff', al:'center'}); });
     icT(x, dCurta(ini), gx, gy + gh + 22, {s:12.5, c:IC.mut}); icT(x, dCurta(pesoPts[pesoPts.length - 1].d), gx + gw, gy + gh + 22, {s:12.5, c:IC.mut, al:'right'});
     // tabela
-    const tx = a + 400, tw3 = w - 400 - 22, atual = pesoPts[pesoPts.length - 1].v, dl = atual - pesoPts[0].v, rows = [['Início ' + (sem ? 'da semana' : 'do mês'), kgs(pesoPts[0].v) + ' kg'], ['Atual', kgs(atual) + ' kg'], ['Variação', (dl <= 0 ? '−' : '+') + kgs(Math.abs(dl)) + ' kg', dl <= 0 ? IC.okFg : IC.badFg]];
+    const tx = a + 400, tw3 = w - 400 - 22, atual = pesoPts[pesoPts.length - 1].v, dl = atual - pesoPts[0].v, rows = [['Início ' + (sem ? 'da semana' : pers ? 'do período' : 'do mês'), kgs(pesoPts[0].v) + ' kg'], ['Atual', kgs(atual) + ' kg'], ['Variação', (dl <= 0 ? '−' : '+') + kgs(Math.abs(dl)) + ' kg', dl <= 0 ? IC.okFg : IC.badFg]];
     if(pIni){ rows.push(['Peso inicial', kgs(pIni.v) + ' kg']); const di = atual - pIni.v; rows.push(['Desde o início', (di <= 0 ? '−' : '+') + kgs(Math.abs(di)) + ' kg', di <= 0 ? IC.okFg : IC.badFg]); }
     if(P.meta) rows.push(['Meta', kgs(P.meta) + ' kg']);
     let ty = cy0 + 6; rows.forEach(([l, v, c]) => { icT(x, l, tx, ty + 14, {s:14.5}); icT(x, v, tx + tw3, ty + 14, {s:15, w:800, al:'right', c:c || IC.fg}); x.fillStyle = '#EDF2F5'; x.fillRect(tx, ty + 24, tw3, 1); ty += 31; });
@@ -4938,7 +4957,7 @@ async function relImgGerar(D){
   const ins = relInsights(D);
   let insH = 66 + 8; ins.forEach(([t]) => { insH += icWrap(x, t, 0, 0, Rw - 80, 20, {s:15, dry:true}).n * 20 + 12; });
   const corSt = st => st === 'plano' ? [IC.okBg, IC.okFg] : st === 'fora' ? [IC.warnBg, IC.warnFg] : st === 'andamento' ? ['#E8F0FB', '#2F5DA8'] : ['#F2F6F8', '#A9B8C0'];
-  const dd = sem ? {a:Lx, w:Lw, h:96 + 30 + Math.max(1, s.cs.length) * 32 + 14, draw:(a, b, w, h) => {
+  const dd = sem || (pers && s.cs.length <= 10) ? {a:Lx, w:Lw, h:96 + 30 + Math.max(1, s.cs.length) * 32 + 14, draw:(a, b, w, h) => {
     let yy = rpPanel(x, a, b, w, h, 'Dia a dia', 'Calorias, água, treino e peso de cada dia.'); const cX = [a + 22, a + 170, a + 258, a + 360, a + 460, a + w - 22];
     ['Dia', 'kcal', 'Água', 'Treino', 'Peso', 'Situação'].forEach((l, k) => icT(x, l, cX[k], yy + 14, {s:14, w:800, al:k === 0 ? 'left' : k === 5 ? 'right' : 'center'}));
     yy += 26; s.cs.forEach(c => { const d = S.days[c.d] || {}, ms = sessoes(c.d).filter(z => z.fim).length, fut = c.d > today(); x.fillStyle = '#EDF2F5'; x.fillRect(cX[0], yy, w - 44, 1);
@@ -4950,10 +4969,10 @@ async function relImgGerar(D){
   }} : (() => {
     const lead = (parse(ini).getDay() + 6) % 7, rows = Math.ceil((lead + all.length) / 7), ch = 50;
     return {a:Lx, w:Lw, h:96 + 26 + rows * (ch + 6) + 40, draw:(a, b, w, h) => {
-      let yy = rpPanel(x, a, b, w, h, 'Calendário do mês', 'Como foi cada dia (kcal registradas).'); const cwid = (w - 44 - 6 * 6) / 7;
+      let yy = rpPanel(x, a, b, w, h, pers ? 'Calendário do período' : 'Calendário do mês', 'Como foi cada dia (kcal registradas).'); const cwid = (w - 44 - 6 * 6) / 7;
       ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].forEach((l, k) => icT(x, l, a + 22 + k * (cwid + 6) + cwid / 2, yy + 12, {s:13, w:700, c:IC.mut, al:'center'}));
       yy += 22; const csM = {}; s.cs.forEach(c => csM[c.d] = c); all.map(d => csM[d] || {d, c:{status:'vazio', kcal:0}}).forEach((c, i) => { const p = lead + i, cx = a + 22 + (p % 7) * (cwid + 6), cy = yy + Math.floor(p / 7) * (ch + 6), fut = c.d > today(), [bg, fg] = fut ? ['#F8FAFB', '#C5D0D6'] : corSt(c.c.status);
-        x.fillStyle = bg; icRR(x, cx, cy, cwid, ch, 9); x.fill(); icT(x, String(parse(c.d).getDate()), cx + 9, cy + 19, {s:13.5, w:800, c:fg}); if(!fut && c.c.status !== 'vazio') icT(x, fmt(c.c.kcal), cx + cwid - 8, cy + 41, {s:12.5, w:700, c:fg, al:'right'}); if(c.c.waterOk){ x.fillStyle = '#3B82F6'; x.beginPath(); x.arc(cx + cwid - 12, cy + 13, 4, 0, Math.PI * 2); x.fill(); } });
+        x.fillStyle = bg; icRR(x, cx, cy, cwid, ch, 9); x.fill(); icT(x, pers && (i === 0 || parse(c.d).getDate() === 1) ? parse(c.d).getDate() + '/' + (parse(c.d).getMonth() + 1) : String(parse(c.d).getDate()), cx + 9, cy + 19, {s:13.5, w:800, c:fg}); if(!fut && c.c.status !== 'vazio') icT(x, fmt(c.c.kcal), cx + cwid - 8, cy + 41, {s:12.5, w:700, c:fg, al:'right'}); if(c.c.waterOk){ x.fillStyle = '#3B82F6'; x.beginPath(); x.arc(cx + cwid - 12, cy + 13, 4, 0, Math.PI * 2); x.fill(); } });
       const ly = yy + rows * (ch + 6) + 14; [['Fiz tudo', IC.okBg, IC.okFg], ['Dia parcial', IC.warnBg, IC.warnFg], ['Em andamento', '#E8F0FB', '#2F5DA8'], ['Sem registro', '#F2F6F8', '#A9B8C0']].forEach(([l, bg, fg], k) => { const lx = a + 22 + k * 142; x.fillStyle = bg; icRR(x, lx, ly - 12, 16, 16, 4); x.fill(); x.strokeStyle = fg; x.lineWidth = 1; icRR(x, lx, ly - 12, 16, 16, 4); x.stroke(); icT(x, l, lx + 22, ly + 1, {s:13, c:IC.mut}); });
           }};
   })();
@@ -4987,7 +5006,7 @@ async function relImgPrep(){
   const D = relDados(), tag = D.per + '|' + D.all[0] + '|' + D.all.length + '|' + D.dates.length + '|' + JSON.stringify(D.dates.map(d => (S.days[d] || {})._t || 0)) + '|' + D.nota + '|' + JSON.stringify(S.prof);
   if(S.relImg && S.relImg.tag === tag) return; S.relImg = {tag, loading:true}; render();
   try{
-    const cv = await relImgGerar(D), blob = await cvBlob(cv), nome = ('Relatorio-' + (D.per === 'sem' ? 'semanal' : 'mensal') + '-CheckFit-' + D.all[0].split('-').reverse().join('-') + '.png');
+    const cv = await relImgGerar(D), blob = await cvBlob(cv), nome = ('Relatorio-' + (D.per === 'sem' ? 'semanal' : D.per === 'pers' ? 'personalizado' : 'mensal') + '-CheckFit-' + D.all[0].split('-').reverse().join('-') + (D.per === 'pers' ? '-a-' + D.all[D.all.length - 1].split('-').reverse().join('-') : '') + '.png');
     let file = null; try{ file = new File([blob], nome, {type:'image/png'}); }catch(e){}
     if(S.relImg && S.relImg.url) try{ URL.revokeObjectURL(S.relImg.url); }catch(e){}
     S.relImg = {tag, url:URL.createObjectURL(blob), nome, file, share:!!(file && navigator.canShare && navigator.canShare({files:[file]}))};
@@ -5001,9 +5020,16 @@ function relImgBox(){
   return `<div class="row" style="margin-top:10px">${R.share ? `<button class="primary" id="rimg-share" data-act="rimgshare">Salvar ou enviar imagem</button>` : ''}<a class="${R.share ? 'ghost' : 'primary'} relbtnl" id="rimg-dl" href="${R.url}" download="${esc(R.nome)}" target="_blank" rel="noopener">${R.share ? 'Abrir imagem' : 'Baixar imagem'}</a></div>
     <img class="bioimg" id="rimg" src="${R.url}" alt="Relatório em imagem">`;
 }
+document.addEventListener('change', e => {
+  const id = e.target && e.target.id; if(id !== 'rel-ini' && id !== 'rel-fim') return;
+  const v = e.target.value; if(!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+  if(id === 'rel-ini') S.relIni = v; else S.relFim = v;
+  S.relPdf = null; S.pdfNome = null; render();
+});
 function relPerAct(a, b){
   if(a === 'rimgshare'){ const R = S.relImg; if(R && R.file) navigator.share({files:[R.file], title:'Relatório CheckFit'}).catch(() => {}); return true; }
-  if(a === 'relper'){ S.relPer = b.dataset.v; S.relPdf = null; S.pdfNome = null; render(); return true; }
+  if(a === 'relper'){ S.relPer = b.dataset.v; if(S.relPer === 'pers' && !S.relIni){ S.relIni = relInicioPlano(); S.relFim = today(); } S.relPdf = null; S.pdfNome = null; render(); return true; }
+  if(a === 'relrap'){ const v = b.dataset.v; S.relFim = today(); S.relIni = v === 'plano' ? relInicioPlano() : addDays(today(), -(+v - 1)); S.relPdf = null; S.pdfNome = null; render(); return true; }
   if(a === 'relnav'){ const dir = +b.dataset.d; if(S.relPer === 'sem') S.date = addDays(S.date, 7 * dir); else { const d = parse(S.date); S.date = ymd(new Date(d.getFullYear(), d.getMonth() + dir, 1)); } if(S.date > today()) S.date = today(); S.relPdf = null; S.pdfNome = null; render(); return true; }
   if(a === 'relsem'){ S.relPer = 'sem'; S.mode = 'rel'; S.relPdf = null; S.pdfNome = null; render(); window.scrollTo(0, 0); return true; }
   return false;
@@ -5666,7 +5692,7 @@ document.addEventListener('click',e=>{
   if(a==='delno'){S.confirmDel=false; render(); return;}
   if(a==='delyes'){deleteAccount(); return;}
   if(a==='afilter'){A.f=b.dataset.v; render(); return;}
-  if(/^(relper|relnav|relsem|rimgshare)$/.test(a) && relPerAct(a,b)) return;
+  if(/^(relper|relnav|relsem|relrap|rimgshare)$/.test(a) && relPerAct(a,b)) return;
   if(a==='rel'){S.relPer='mes'; S.mode='rel'; S.relPdf=null; S.pdfNome=null; render(); window.scrollTo(0,0); return;}
   if(a==='bionova'){S.plus=false; S.bioDate=null; S.bioConf=null; S.mode='bio'; render(); window.scrollTo(0,0); return;}
   if(a==='bioedit'){S.bioDate=b.dataset.d; S.bioConf=null; S.mode='bio'; render(); window.scrollTo(0,0); return;}
