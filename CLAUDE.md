@@ -1,6 +1,6 @@
 # CheckFit — contexto do projeto (para continuar em outra conversa)
 
-Atualizado em 17/11/2026, versão 51 do app.
+Atualizado em 17/11/2026, versão 52 do app.
 
 ## Quem sou e como trabalho
 - **Quem:** Alexandre (pt-BR). Uso iPhone e não sou programador. Respostas em português, diretas, com passo a passo quando eu precisar mexer em algo.
@@ -49,6 +49,8 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
   - Na semana aparece o "Dia a dia"; no mês, um calendário colorido.
   - Destaques e próximos passos são gerados automaticamente (`relDestaques`, `relInsights`).
   - Entradas: cartão "Relatório da semana" na visão semanal (`relsem`) e "Relatório do mês" na visão mensal (`rel`).
+- **Quando o dia foi registrado:** `save()` chama `regMarca(date)`, que grava `_rg` no dia: `dia:1` se foi editado no próprio dia (até 10h do dia seguinte vale) e `dep:N` (maior atraso em dias) se foi editado depois. `regResumo()` alimenta a seção "Como os registros foram feitos" do relatório, o destaque na imagem e o ↺ no calendário e no dia a dia. Dias anteriores à v52 não têm `_rg` e aparecem como "sem essa informação".
+- **Som do treino:** `audioAmbiente()` usa `navigator.audioSession.type = 'ambient'` (iOS 16.4+) para o bipe do descanso misturar com a música, sem pausar o app de música. Com o som desligado (`S.prof.somDesc === false`), o app não toca nenhum áudio.
 - **Refeições:** ficam encolhidas (`mealCard`, `mealHead`, `mealDaVez`, `mealAct`). A refeição da hora abre sozinha. "Marcar tudo" ou "Pulei" fecham e passam para a próxima.
 
 ## Dados no Firestore

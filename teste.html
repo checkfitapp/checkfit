@@ -756,10 +756,23 @@ function waterMl(date){
 }
 
 /* ---------- Persistência ---------- */
+/* marca se o dia foi preenchido no próprio dia (até 10h do dia seguinte vale) ou depois */
+function regMarca(date){
+  const d = S.days[date], td = today(), h = new Date().getHours(); if(!d) return;
+  const g = d._rg = d._rg || {};
+  if(date >= td || (date === addDays(td, -1) && h < 10)) g.dia = 1;
+  else { const atraso = Math.round((parse(td) - parse(date)) / 864e5); g.dep = Math.max(g.dep || 0, atraso); }
+}
+function regTipo(d){ const g = d && d._rg; if(!g) return null; return g.dep ? (g.dia ? 'compl' : 'depois') : 'dia'; }
+function regResumo(dates){
+  const r = {dia:0, compl:0, depois:0, sem:0, base:0, lista:[]};
+  dates.forEach(dt => { const d = S.days[dt]; if(!d || !temRegistro(d)) return; const t = regTipo(d); if(!t){ r.sem++; return; } r.base++; r[t]++; if(t !== 'dia') r.lista.push({d:dt, t, atraso:d._rg.dep}); });
+  return r;
+}
 function save(date){
   try{ grpAgenda(); }catch(e){}
   clearTimeout(S.timers[date]);
-  if(S.days[date] && !S.days[date]._h){ S.days[date]._t=Date.now(); try{ cofreGuardar(date); }catch(e){} }
+  if(S.days[date] && !S.days[date]._h){ S.days[date]._t=Date.now(); try{ regMarca(date); }catch(e){} try{ cofreGuardar(date); }catch(e){} }
   S.timers[date]=setTimeout(()=>{ delete S.timers[date]; cofreEnviar(date); },450);
 }
 async function saveCustom(){
@@ -1580,10 +1593,11 @@ function relDados(){
   const nota = relNota(), geradoEm = new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
   const kgs = v => String(Math.round(v * 10) / 10).replace('.', ',');
   const stTxt = st => (DAY_STATUS[st] || ['—'])[0];
-  return {per, all, dates, n, d0, td, s, nome, mes, noP, iniP, P, ini, fim, reg, pctPlano, pesoMes, pesoAntes, WL, pIni, pesoPts, porRef, medRows, grp, cargas, nota, geradoEm, kgs, stTxt};
+  const rg = regResumo(dates);
+  return {rg, per, all, dates, n, d0, td, s, nome, mes, noP, iniP, P, ini, fim, reg, pctPlano, pesoMes, pesoAntes, WL, pIni, pesoPts, porRef, medRows, grp, cargas, nota, geradoEm, kgs, stTxt};
 }
 function relView(){
-  const D = relDados(), {per, all, dates, n, s, nome, mes, noP, iniP, P, ini, fim, reg, pctPlano, pesoMes, pIni, pesoPts, porRef, medRows, grp, cargas, nota, geradoEm, kgs, stTxt} = D;
+  const D = relDados(), {rg, per, all, dates, n, s, nome, mes, noP, iniP, P, ini, fim, reg, pctPlano, pesoMes, pIni, pesoPts, porRef, medRows, grp, cargas, nota, geradoEm, kgs, stTxt} = D;
   let h = `<section class="card noprint" id="view-rel"><div class="thead"><div><h2>Relatório ${per === 'sem' ? 'semanal' : per === 'pers' ? 'personalizado' : 'mensal'}</h2><div class="sub">Para levar à nutricionista, ao médico ou ao personal.</div></div><button class="ghost" id="rel-back" data-act="relback">Voltar</button></div>
     <div class="relper"><div class="seg" role="group" aria-label="Período do relatório"><button id="rel-sem" data-act="relper" data-v="sem" aria-pressed="${per === 'sem'}">Semanal</button><button id="rel-mes" data-act="relper" data-v="mes" aria-pressed="${per === 'mes'}">Mensal</button><button id="rel-pers" data-act="relper" data-v="pers" aria-pressed="${per === 'pers'}">Personalizado</button></div>
      ${per === 'pers' ? `<div class="relpers"><label>De<input type="date" id="rel-ini" value="${all[0]}" max="${today()}"></label><label>Até<input type="date" id="rel-fim" value="${all[n - 1]}" max="${today()}"></label>
@@ -1623,6 +1637,10 @@ function relView(){
    ${(() => { const L = ajLinhas(S.aj, S.planBase, S.treinoBase); return L.length ? `<section class="rs"><h2>Ajustes feitos pelo paciente</h2><p class="rnote" style="margin:0 0 6px">Mudanças que o paciente fez por conta própria sobre o plano e a ficha originais.</p><table class="rt full"><tbody>${L.map(l => `<tr><td>${esc(l)}</td></tr>`).join('')}</tbody></table></section>` : ''; })()}
    <section class="rs brk"><h2>Dia a dia</h2><table class="rt full dd"><thead><tr><th>Dia</th><th>kcal</th><th>Água</th><th>Treino</th><th>Peso</th><th>Situação</th></tr></thead><tbody>
      ${s.cs.map(x => { const dd = S.days[x.d] || {}, ms = sessoes(x.d).filter(z => z.fim).length; return `<tr class="${x.c.status}"><td>${parse(x.d).toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit'})}</td><td>${x.c.status === 'vazio' ? '—' : fmt(x.c.kcal)}</td><td>${x.c.water ? fmtL(x.c.water) + ' L' : '—'}</td><td>${x.c.tr.min || ms ? (x.c.tr.min ? fmt(x.c.tr.min) + ' min' : '') + (ms ? (x.c.tr.min ? ' · ' : '') + 'musc.' : '') : '—'}</td><td>${+dd.peso > 0 ? kgs(+dd.peso) : '—'}</td><td>${stTxt(x.c.status)}</td></tr>`; }).join('')}</tbody></table></section>
+   ${rg.base ? `<section class="rs"><h2>Como os registros foram feitos</h2>
+     <table class="rt"><tr><th>No próprio dia</th><td>${rg.dia} dia${rg.dia === 1 ? '' : 's'}</td></tr><tr><th>Completados depois</th><td>${rg.compl} dia${rg.compl === 1 ? '' : 's'}</td></tr><tr><th>Preenchidos só depois</th><td>${rg.depois} dia${rg.depois === 1 ? '' : 's'}</td></tr>${rg.sem ? `<tr><th>Sem essa informação</th><td>${rg.sem} dia${rg.sem === 1 ? '' : 's'} (registros anteriores a esse controle)</td></tr>` : ''}</table>
+     ${rg.lista.length ? `<p class="rnote">Dias preenchidos depois: ${rg.lista.map(x => dCurta(x.d) + ' (' + (x.t === 'compl' ? 'completado' : 'preenchido') + ' até ' + x.atraso + ' dia' + (x.atraso > 1 ? 's' : '') + ' depois)').join(' · ')}.</p>` : ''}
+     <p class="rnote">Registros feitos até as 10h do dia seguinte contam como feitos no próprio dia.</p></section>` : ''}
    <section class="rs"${nota.trim() ? '' : ' hidden'}><h2>Observações do paciente</h2><p class="rnota" id="rel-nota-print">${esc(nota)}</p></section>
    <footer class="rf">Dados registrados pelo próprio usuário no app CheckFit. Calorias aproximadas (tabela TACO e rótulos). Este relatório não substitui avaliação profissional.</footer>
   </article>`;
@@ -4820,7 +4838,8 @@ function relDestaques(D){
   if(reg) out.push([reg + ' dia' + (reg > 1 ? 's' : '') + ' com registros', reg >= dates.length * 0.7 ? 'ok' : 'warn']);
   if(s.mealsTot && !ehHabitos()) out.push([pctPlano >= 70 ? pctPlano + '% das refeições dentro do plano' : 'Aumentar a adesão ao plano alimentar (atual: ' + pctPlano + '%)', pctPlano >= 70 ? 'ok' : 'warn']);
   if(s.best >= 3) out.push(['Melhor sequência: ' + s.best + ' dias com tudo feito', 'ok']);
-  return out.slice(0, 6);
+  const rg = D.rg; if(rg && rg.base){ const tard = rg.compl + rg.depois; out.splice(Math.min(out.length, 4), 0, [tard ? rg.dia + ' de ' + rg.base + ' dias registrados no próprio dia (' + tard + ' preenchido' + (tard > 1 ? 's' : '') + ' depois)' : 'Todos os dias registrados no próprio dia', tard > rg.base * 0.2 ? 'warn' : 'ok']); }
+  return out.slice(0, 7);
 }
 function relInsights(D){
   const {s, reg, pctPlano, dates, P} = D, out = [];
@@ -4961,19 +4980,20 @@ async function relImgGerar(D){
     let yy = rpPanel(x, a, b, w, h, 'Dia a dia', 'Calorias, água, treino e peso de cada dia.'); const cX = [a + 22, a + 170, a + 258, a + 360, a + 460, a + w - 22];
     ['Dia', 'kcal', 'Água', 'Treino', 'Peso', 'Situação'].forEach((l, k) => icT(x, l, cX[k], yy + 14, {s:14, w:800, al:k === 0 ? 'left' : k === 5 ? 'right' : 'center'}));
     yy += 26; s.cs.forEach(c => { const d = S.days[c.d] || {}, ms = sessoes(c.d).filter(z => z.fim).length, fut = c.d > today(); x.fillStyle = '#EDF2F5'; x.fillRect(cX[0], yy, w - 44, 1);
-      icT(x, parse(c.d).toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit'}), cX[0], yy + 22, {s:14.5, w:700, c:fut ? '#A9B8C0' : IC.fg});
+      icT(x, parse(c.d).toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit'}) + (regTipo(S.days[c.d]) && regTipo(S.days[c.d]) !== 'dia' ? ' ↺' : ''), cX[0], yy + 22, {s:14.5, w:700, c:fut ? '#A9B8C0' : IC.fg});
       if(!fut){ icT(x, c.c.status === 'vazio' ? '—' : fmt(c.c.kcal), cX[1], yy + 22, {s:14.5, al:'center'}); icT(x, c.c.water ? fmtL(c.c.water) + ' L' : '—', cX[2], yy + 22, {s:14.5, al:'center', c:c.c.waterOk ? IC.okFg : IC.fg});
         icT(x, c.c.tr.min ? fmt(c.c.tr.min) + ' min' : ms ? 'musc.' : '—', cX[3], yy + 22, {s:14.5, al:'center'}); icT(x, +d.peso > 0 ? kgs(+d.peso) : '—', cX[4], yy + 22, {s:14.5, al:'center'});
         const [bg, fg] = corSt(c.c.status), t = (DAY_STATUS[c.c.status] || ['—'])[0]; x.font = '700 12.5px ' + IFB; const pw = Math.min(130, x.measureText(t).width + 18); x.fillStyle = bg; icRR(x, cX[5] - pw, yy + 6, pw, 22, 7); x.fill(); icT(x, t, cX[5] - pw / 2, yy + 22, {s:12.5, w:700, c:fg, al:'center', max:pw - 6}); }
       yy += 32; });
   }} : (() => {
     const lead = (parse(ini).getDay() + 6) % 7, rows = Math.ceil((lead + all.length) / 7), ch = 50;
-    return {a:Lx, w:Lw, h:96 + 26 + rows * (ch + 6) + 40, draw:(a, b, w, h) => {
+    return {a:Lx, w:Lw, h:96 + 26 + rows * (ch + 6) + 66, draw:(a, b, w, h) => {
       let yy = rpPanel(x, a, b, w, h, pers ? 'Calendário do período' : 'Calendário do mês', 'Como foi cada dia (kcal registradas).'); const cwid = (w - 44 - 6 * 6) / 7;
       ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].forEach((l, k) => icT(x, l, a + 22 + k * (cwid + 6) + cwid / 2, yy + 12, {s:13, w:700, c:IC.mut, al:'center'}));
       yy += 22; const csM = {}; s.cs.forEach(c => csM[c.d] = c); all.map(d => csM[d] || {d, c:{status:'vazio', kcal:0}}).forEach((c, i) => { const p = lead + i, cx = a + 22 + (p % 7) * (cwid + 6), cy = yy + Math.floor(p / 7) * (ch + 6), fut = c.d > today(), [bg, fg] = fut ? ['#F8FAFB', '#C5D0D6'] : corSt(c.c.status);
-        x.fillStyle = bg; icRR(x, cx, cy, cwid, ch, 9); x.fill(); icT(x, pers && (i === 0 || parse(c.d).getDate() === 1) ? parse(c.d).getDate() + '/' + (parse(c.d).getMonth() + 1) : String(parse(c.d).getDate()), cx + 9, cy + 19, {s:13.5, w:800, c:fg}); if(!fut && c.c.status !== 'vazio') icT(x, fmt(c.c.kcal), cx + cwid - 8, cy + 41, {s:12.5, w:700, c:fg, al:'right'}); if(c.c.waterOk){ x.fillStyle = '#3B82F6'; x.beginPath(); x.arc(cx + cwid - 12, cy + 13, 4, 0, Math.PI * 2); x.fill(); } });
+        x.fillStyle = bg; icRR(x, cx, cy, cwid, ch, 9); x.fill(); icT(x, pers && (i === 0 || parse(c.d).getDate() === 1) ? parse(c.d).getDate() + '/' + (parse(c.d).getMonth() + 1) : String(parse(c.d).getDate()), cx + 9, cy + 19, {s:13.5, w:800, c:fg}); if(!fut && c.c.status !== 'vazio') icT(x, fmt(c.c.kcal), cx + cwid - 8, cy + 41, {s:12.5, w:700, c:fg, al:'right'}); if(!fut && c.c.status !== 'vazio' && regTipo(S.days[c.d]) && regTipo(S.days[c.d]) !== 'dia') icT(x, '↺', cx + 8, cy + 42, {s:14, w:800, c:'#B45309'}); if(c.c.waterOk){ x.fillStyle = '#3B82F6'; x.beginPath(); x.arc(cx + cwid - 12, cy + 13, 4, 0, Math.PI * 2); x.fill(); } });
       const ly = yy + rows * (ch + 6) + 14; [['Fiz tudo', IC.okBg, IC.okFg], ['Dia parcial', IC.warnBg, IC.warnFg], ['Em andamento', '#E8F0FB', '#2F5DA8'], ['Sem registro', '#F2F6F8', '#A9B8C0']].forEach(([l, bg, fg], k) => { const lx = a + 22 + k * 142; x.fillStyle = bg; icRR(x, lx, ly - 12, 16, 16, 4); x.fill(); x.strokeStyle = fg; x.lineWidth = 1; icRR(x, lx, ly - 12, 16, 16, 4); x.stroke(); icT(x, l, lx + 22, ly + 1, {s:13, c:IC.mut}); });
+      icT(x, '↺', a + 24, ly + 31, {s:15, w:800, c:'#B45309'}); icT(x, 'preenchido depois do dia', a + 44, ly + 30, {s:13, c:IC.mut}); x.fillStyle = '#3B82F6'; x.beginPath(); x.arc(a + 250, ly + 25, 4.5, 0, Math.PI * 2); x.fill(); icT(x, 'meta de água batida', a + 262, ly + 30, {s:13, c:IC.mut});
           }};
   })();
   const insB = {a:Rx, w:Rw, h:insH + 10, draw:(a, b, w, h) => {
@@ -5184,14 +5204,21 @@ function beepWav(){
   for(let i = 0; i < n; i++){ const t = i / sr; let s = 0; tons.forEach(([a, d], k) => { if(t >= a && t < a + d){ const lt = t - a, env = Math.min(1, lt / .01, (d - lt) / .03); s += Math.sin(2 * Math.PI * (k === 3 ? 1175 : 880) * lt) * env; } }); v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s * .9)) * 32767, true); }
   return URL.createObjectURL(new Blob([buf], {type:'audio/wav'}));
 }
+/* iPhone (iOS 16.4+): sessão de áudio "ambiente" mistura com a música em vez de pausá-la */
+function audioAmbiente(){ try{ if(navigator.audioSession && navigator.audioSession.type !== 'ambient') navigator.audioSession.type = 'ambient'; }catch(e){} }
+audioAmbiente();
 function audioUnlock(){
+  if(S.prof && S.prof.somDesc === false) return;
+  audioAmbiente();
+  if(navigator.audioSession){ try{ AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if(AC.state !== 'running') AC.resume(); }catch(e){} return; }
   try{ AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if(AC.state !== 'running') AC.resume(); }catch(e){}
   try{ if(!BEEP_EL){ BEEP_EL = new Audio(beepWav()); BEEP_EL.preload = 'auto'; BEEP_EL.setAttribute('playsinline', ''); }
     if(!BEEP_OK){ BEEP_EL.muted = true; const p = BEEP_EL.play(); const fim = () => { try{ BEEP_EL.pause(); BEEP_EL.currentTime = 0; }catch(e){} BEEP_EL.muted = false; }; if(p && p.then) p.then(() => { BEEP_OK = true; fim(); }).catch(fim); else { BEEP_OK = true; fim(); } } }catch(e){}
 }
 function beep(){
   let tocou = false;
-  try{ if(BEEP_EL && BEEP_OK && S.prof.somDesc !== false){ BEEP_EL.muted = false; BEEP_EL.volume = 1; BEEP_EL.currentTime = 0; const p = BEEP_EL.play(); tocou = true; if(p && p.catch) p.catch(() => beepWA()); } }catch(e){ tocou = false; }
+  audioAmbiente();
+  try{ if(BEEP_EL && BEEP_OK && S.prof.somDesc !== false && !navigator.audioSession){ BEEP_EL.muted = false; BEEP_EL.volume = 1; BEEP_EL.currentTime = 0; const p = BEEP_EL.play(); tocou = true; if(p && p.catch) p.catch(() => beepWA()); } }catch(e){ tocou = false; }
   if(!tocou && S.prof.somDesc !== false) beepWA();
   try{ if(navigator.vibrate) navigator.vibrate([250, 120, 250]); }catch(e){}
   const bar = document.getElementById('restbar'); if(bar){ bar.classList.remove('fim'); void bar.offsetWidth; bar.classList.add('fim'); }
