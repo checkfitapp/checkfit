@@ -660,11 +660,16 @@ html.pwa .wrap{position:fixed;top:0;bottom:0;left:0;right:0;overflow-y:auto;over
 .cs-h{font-size:13px;font-weight:700;color:var(--muted);margin:14px 4px 8px}
 .cs-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .cs-p{min-height:52px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:8px 10px;text-align:left;font:inherit;cursor:pointer;min-width:0}
-.cs-p b{font-size:14px;display:flex;align-items:center;gap:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-p b{font-size:14px;display:flex;align-items:center;gap:4px;max-width:100%;line-height:1.2}
 .cs-p span{font-size:12px;font-weight:600;color:var(--muted)}
 .cs-p.ok{background:var(--accent-soft);border-color:transparent;color:var(--ok)}
 .cs-p.ok span{color:var(--ok)}
-.cs-p.pul{background:var(--surface2);border-color:transparent}
+.cs-p.pul{background:var(--idle-soft);border-color:transparent}.cs-p.pul span{text-decoration:line-through}
+.cs-p.dif{background:var(--warn-soft);border-color:transparent;color:var(--warn)}.cs-p.dif span{color:var(--warn)}
+.cs-saldo{font-size:13.5px;color:var(--muted);margin-left:27px;margin-top:-3px}.cs-saldo b{color:var(--ok)}.cs-saldo.over b{color:var(--bad)}
+.mc.mc-plano{border-color:var(--ok)}.mc.mc-outro{border-color:var(--warn)}.mc.mc-pulou{border-color:var(--idle)}.mc.mc-nada{border-color:var(--accent)}
+.mc-selo{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:4px;vertical-align:1px}
+.mc-selo.ok{background:var(--ok-soft);color:var(--ok)}.mc-selo.dif{background:var(--warn-soft);color:var(--warn)}.mc-selo.pul{background:var(--idle-soft);color:var(--idle)}
 .cs-p.med b{color:#6D4BB0}
 .cs-p.med.ok{background:#EDE6F7;color:#5B3D99}.cs-p.med.ok span,.cs-p.med.ok b{color:#5B3D99}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cs-p.med.ok{background:#2E2546}:root:not([data-theme="light"]) .cs-p.med.ok b,:root:not([data-theme="light"]) .cs-p.med.ok span,:root:not([data-theme="light"]) .cs-p.med b{color:#C4B1F0}}
@@ -5201,6 +5206,7 @@ function casaResumo(date, c){
       ${ds.length ? lin(CAPS, rt + ' de ' + ds.length, ds.length === 1 ? 'remédio' : 'remédios') : ''}
       ${lin(ehHabitos() ? '🌱' : '✓', c.ok + ' de ' + PLAN.length, ehHabitos() ? 'refeições com hábitos' : 'refeições')}
       ${ehHabitos() ? '' : lin('🍽️', fmt(c.kcal), 'de ' + fmt(REF) + ' kcal')}
+      ${ehHabitos() || !REF ? '' : (c.kcal <= REF ? `<div class="cs-saldo">Sobram <b class="num">${fmt(REF - c.kcal)} kcal</b> ${date === today() ? 'hoje' : 'neste dia'}</div>` : `<div class="cs-saldo over">Passou <b class="num">${fmt(c.kcal - REF)} kcal</b> da meta</div>`)}
     </div></div>
     <div class="cs-agua"><span aria-hidden="true">💧</span><div class="cs-bar" role="img" aria-label="Água: ${fmtL(c.water)} de ${fmtL(WATER_GOAL)} litros"><i style="width:${wpct}%"></i></div><span class="sub num"><b>${fmtL(c.water)}</b> / ${fmtL(WATER_GOAL)} L</span></div>
     <div class="cs-wb"><button class="ghost" id="cs-w200" data-act="water" data-ml="200">+ 200 ml</button><button class="ghost" id="cs-w500" data-act="water" data-ml="500">+ 500 ml</button><button class="ghost" id="cs-w1000" data-act="water" data-ml="1000">+ 1 L</button></div>
@@ -5233,9 +5239,17 @@ function casaTreino(date){
   else { nome = 'Dia de descanso'; sub = 'Quer treinar mesmo assim? Veja em Mais › Fichas de treino.'; btn = ''; }
   return `<section class="card cs-tr${done.length && !doing ? ' ok' : ''}" aria-label="Treino de hoje"><span class="cs-tri" aria-hidden="true">🏋️</span><div class="cs-trb"><span class="cs-eyebrow" style="margin:0">Treino ${date === today() ? 'de hoje' : 'do dia'}</span><b>${esc(nome)}</b><span class="sub">${esc(sub)}</span></div>${btn}</section>`;
 }
+/* situação da refeição: nada marcado, no plano, diferente do plano (ajuste, parte ou extra) ou pulada */
+function mealEstado(m, r){
+  const k = mealCalc(m, r);
+  if(k.status === 'pend') return {st:'nada', cls:'', sub:'', aria:'nada marcado', k};
+  if(r && r.skip && !k.extraK) return {st:'pulou', cls:'pul', sub:'Pulei', aria:'pulada', k};
+  if(k.status === 'ok') return {st:'plano', cls:'ok', sub:k.kcal ? fmt(k.kcal) + ' kcal ✓' : 'Feito ✓', aria:'no plano, ' + fmt(k.kcal) + ' kcal', k};
+  return {st:'outro', cls:'dif', sub:fmt(k.kcal) + ' kcal' + (r && r.skip ? ' (extra)' : ''), aria:'diferente do plano, ' + fmt(k.kcal) + ' kcal', k};
+}
 function casaAgenda(date, semAgora){
   const aberta = semAgora ? null : casaMealId(date), itens = [];
-  PLAN.forEach(m => { if(m.id === aberta) return; const r = rec(date, m.id, false), f = mealFeita(m, r), sk = !!(r && r.skip); itens.push({h:m.time || '99:99', html:`<button class="cs-p${f ? (sk ? ' pul' : ' ok') : ''}" data-act="cabre" data-m="${m.id}" aria-label="${esc(m.name)}${f ? (sk ? ', pulada' : ', feita') : ''}"><b>${esc(m.name)}</b><span>${f ? (sk ? 'Pulei' : 'Feito ✓') : esc(m.time || '')}</span></button>`}); });
+  PLAN.forEach(m => { if(m.id === aberta) return; const E = mealEstado(m, rec(date, m.id, false)); itens.push({h:m.time || '99:99', html:`<button class="cs-p ${E.cls}" data-act="cabre" data-m="${m.id}" aria-label="${esc(m.name)}, ${E.aria}"><b>${esc(m.name)}</b><span class="num">${E.sub || esc(m.time || '')}</span></button>`}); });
   (remLista().length ? remDoses(date) : []).forEach(x => itens.push({h:x.h, html:`<button class="cs-p med${x.ok ? ' ok' : ''}" data-act="remtoma" data-d="${date}" data-k="${esc(x.k)}" aria-pressed="${x.ok}"><b>${CAPS}${esc(x.m.n)}</b><span>${x.h}${x.ok ? ' · Tomado' : ''}</span></button>`}));
   if(!itens.length) return '';
   itens.sort((a, b) => a.h < b.h ? -1 : a.h > b.h ? 1 : 0);
@@ -5444,8 +5458,9 @@ document.addEventListener('change', e => {
 /* refeição compacta do Início simples: uma linha por item; trocas e quantidade ao tocar em "trocar" */
 function mealCompacto(date, m){
   const r = rec(date, m.id, false), calc = mealCalc(m, r), oi = (r && r.opt) || 0, opt = m.options[oi] || m.options[0], p = mealProg(m, r), skip = !!(r && r.skip);
-  let h = `<section class="card meal mc" id="meal-${m.id}" aria-label="${esc(m.name)}">
-   <div class="mc-hd"><div><h2>${esc(m.name)} <small class="num">${skip ? 'pulada' : p.on + ' de ' + p.tot}</small></h2><span class="sub num">${fmt(calc.kcal)} kcal</span></div><button class="ghost mc-all" id="all-${m.id}" data-act="mealall" data-m="${m.id}">Marcar tudo</button></div>`;
+  const E = mealEstado(m, r), selo = {plano:'<span class="mc-selo ok">✓ No plano</span>', outro:'<span class="mc-selo dif">Diferente do plano</span>', pulou:'<span class="mc-selo pul">Pulada</span>'}[E.st] || '';
+  let h = `<section class="card meal mc mc-${E.st}" id="meal-${m.id}" aria-label="${esc(m.name)}">
+   <div class="mc-hd"><div><h2>${esc(m.name)} <small class="num">${skip ? '' : p.on + ' de ' + p.tot}</small></h2><span class="sub num">${fmt(calc.kcal)} kcal</span> ${selo}</div><button class="ghost mc-all" id="all-${m.id}" data-act="mealall" data-m="${m.id}">Marcar tudo</button></div>`;
   if(m.options.length > 1) h += `<div class="opts mc-opts" role="group" aria-label="Opções">${m.options.map((o, i) => `<button class="chip${o.aj ? ' mine' : ''}" id="opt-${m.id}-${i}" data-act="opt" data-m="${m.id}" data-o="${i}" aria-pressed="${i === oi}">${esc(o.label)}</button>`).join('')}</div>`;
   h += `<div class="mc-its">`;
   opt.items.forEach(it => {
