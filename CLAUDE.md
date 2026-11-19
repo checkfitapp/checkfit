@@ -1,6 +1,6 @@
 # CheckFit — contexto do projeto (para continuar em outra conversa)
 
-Atualizado em 19/11/2026, versão 54 do app.
+Atualizado em 19/11/2026, versão 55 do app.
 
 ## Quem sou e como trabalho
 - **Quem:** Alexandre (pt-BR). Uso iPhone e não sou programador. Respostas em português, diretas, com passo a passo quando eu precisar mexer em algo.
@@ -53,6 +53,7 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
 - **Som do treino:** `audioAmbiente()` usa `navigator.audioSession.type = 'ambient'` (iOS 16.4+) para o bipe do descanso misturar com a música, sem pausar o app de música. Com o som desligado (`S.prof.somDesc === false`), o app não toca nenhum áudio.
 - **Personalizar Início:** `inicioModo()` lê `S.prof.iniModo` = 'simples' (padrão), 'completo' ou 'meu' (compatível com o antigo `S.prof.simples === false` → completo). `modoSimples()` é verdadeiro fora do Completo. Módulos em `INI_MODS` (resumo, agora, treino, agenda, seq, agua, remedios, bem, desafio, grupos, peso, calorias, jornada); Simples = `INI_SIMPLES`; no 'meu', ordem em `S.prof.iniOrd` e ligados em `S.prof.iniOn` (`iniOrdem`, `iniLigados`, `iniCard`; ações `inimodo`, `initog`, `iniup`, `inidn`; pelo menos um ligado). Avisos (cardio em andamento, instalar, notificações, retorno) sempre aparecem. Com Refeição da vez desligada, tocar numa refeição em Ainda hoje (`cabre`) abre o cartão dela.
 - **Início enxuto:** `viewDay` chama `casaView`, que desenha os módulos ligados: `casaResumo` (anel, dias seguidos, remédios, refeições, kcal, água com +200/+500/+1 L), `casaAgora` (refeição da vez ou a escolhida em `S.mOpen[date]`, desenhada por `mealCompacto`: uma linha por item, "trocar ›"/"qtd ›" abre o painel em `S.cTroca`, extra em `S.cExtra`), `casaTreino` e `casaAgenda` (botões das outras refeições, `mtog`, e das doses de remédio, `remtoma`). No modo Completo, volta o Início completo antigo.
+- **Situação da refeição:** `mealEstado(m, r)` dá 'nada' (neutro), 'plano' (verde, status ok de `mealCalc`; trocas entre opções do plano contam como plano), 'outro' (âmbar: parte, quantidade alterada ou extra, inclusive pulada com extra) e 'pulou' (cinza). Usado nos botões de Ainda hoje (mostram as kcal da refeição) e no cartão compacto (borda `mc-<st>` e selo). O resumo mostra "Sobram X kcal hoje" ou "Passou X kcal da meta" (`.cs-saldo`).
 - **Aba Mais:** substitui Perfil na barra (`S.tab = 'mais'`, `maisView`). Seções internas em `S.maisSec` (`MAIS_SEC`: bem, desafio, peso, ativ, resumo, bio, conq, perfil); ações `maisx`, `maisback`. `setTab('perfil')` abre Mais › Perfil.
 - **Topo:** `topoProfs()` escreve no `#nutri` a nutricionista (🍽️) e o personal (🏋️, de `S.treino.prof`).
 - **Lista de compras:** `S.mode = 'compras'` (`comprasView`, `lcGerar`, `lcFmt`, `comprasAct`). Multiplica os itens do plano pelos dias, usa a opção e a escolha mais marcadas nas últimas 3 semanas (`lcPreferidos`), agrupa em Hortifrúti/Carnes e ovos/Laticínios/Mercearia por palavras-chave (`LC_KW`). Estado só no aparelho: localStorage `cf-compras-{uid}` (dias, edit, tenho, ok, opc). Entradas: ＋, Planos e Mais.
