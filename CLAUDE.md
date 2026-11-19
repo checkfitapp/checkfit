@@ -1,6 +1,6 @@
 # CheckFit — contexto do projeto (para continuar em outra conversa)
 
-Atualizado em 17/11/2026, versão 52 do app.
+Atualizado em 19/11/2026, versão 54 do app.
 
 ## Quem sou e como trabalho
 - **Quem:** Alexandre (pt-BR). Uso iPhone e não sou programador. Respostas em português, diretas, com passo a passo quando eu precisar mexer em algo.
@@ -51,6 +51,13 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
   - Entradas: cartão "Relatório da semana" na visão semanal (`relsem`) e "Relatório do mês" na visão mensal (`rel`).
 - **Quando o dia foi registrado:** `save()` chama `regMarca(date)`, que grava `_rg` no dia: `dia:1` se foi editado no próprio dia (até 10h do dia seguinte vale) e `dep:N` (maior atraso em dias) se foi editado depois. `regResumo()` alimenta a seção "Como os registros foram feitos" do relatório, o destaque na imagem e o ↺ no calendário e no dia a dia. Dias anteriores à v52 não têm `_rg` e aparecem como "sem essa informação".
 - **Som do treino:** `audioAmbiente()` usa `navigator.audioSession.type = 'ambient'` (iOS 16.4+) para o bipe do descanso misturar com a música, sem pausar o app de música. Com o som desligado (`S.prof.somDesc === false`), o app não toca nenhum áudio.
+- **Personalizar Início:** `inicioModo()` lê `S.prof.iniModo` = 'simples' (padrão), 'completo' ou 'meu' (compatível com o antigo `S.prof.simples === false` → completo). `modoSimples()` é verdadeiro fora do Completo. Módulos em `INI_MODS` (resumo, agora, treino, agenda, seq, agua, remedios, bem, desafio, grupos, peso, calorias, jornada); Simples = `INI_SIMPLES`; no 'meu', ordem em `S.prof.iniOrd` e ligados em `S.prof.iniOn` (`iniOrdem`, `iniLigados`, `iniCard`; ações `inimodo`, `initog`, `iniup`, `inidn`; pelo menos um ligado). Avisos (cardio em andamento, instalar, notificações, retorno) sempre aparecem. Com Refeição da vez desligada, tocar numa refeição em Ainda hoje (`cabre`) abre o cartão dela.
+- **Início enxuto:** `viewDay` chama `casaView`, que desenha os módulos ligados: `casaResumo` (anel, dias seguidos, remédios, refeições, kcal, água com +200/+500/+1 L), `casaAgora` (refeição da vez ou a escolhida em `S.mOpen[date]`, desenhada por `mealCompacto`: uma linha por item, "trocar ›"/"qtd ›" abre o painel em `S.cTroca`, extra em `S.cExtra`), `casaTreino` e `casaAgenda` (botões das outras refeições, `mtog`, e das doses de remédio, `remtoma`). No modo Completo, volta o Início completo antigo.
+- **Aba Mais:** substitui Perfil na barra (`S.tab = 'mais'`, `maisView`). Seções internas em `S.maisSec` (`MAIS_SEC`: bem, desafio, peso, ativ, resumo, bio, conq, perfil); ações `maisx`, `maisback`. `setTab('perfil')` abre Mais › Perfil.
+- **Topo:** `topoProfs()` escreve no `#nutri` a nutricionista (🍽️) e o personal (🏋️, de `S.treino.prof`).
+- **Lista de compras:** `S.mode = 'compras'` (`comprasView`, `lcGerar`, `lcFmt`, `comprasAct`). Multiplica os itens do plano pelos dias, usa a opção e a escolha mais marcadas nas últimas 3 semanas (`lcPreferidos`), agrupa em Hortifrúti/Carnes e ovos/Laticínios/Mercearia por palavras-chave (`LC_KW`). Estado só no aparelho: localStorage `cf-compras-{uid}` (dias, edit, tenho, ok, opc). Entradas: ＋, Planos e Mais.
+- **Aviso de retorno:** `retornoCard` aparece no Início quando a data do plano (`PLANINFO.data`, dd/mm/aaaa) completa `S.prof.retDias` (30/45/60, escolhido no Perfil por `retornoPerfil`). "Lembrar em 7 dias" grava `S.prof.retorno = {plano, ate}`; "Gerar relatório" abre o relatório personalizado desde a data do plano.
+- **Textos do topo:** data em `dataTopo()` ("Quinta, 19 de nov."); o botão Hoje some quando já está no período atual.
 - **Refeições:** ficam encolhidas (`mealCard`, `mealHead`, `mealDaVez`, `mealAct`). A refeição da hora abre sozinha. "Marcar tudo" ou "Pulei" fecham e passam para a próxima.
 
 ## Dados no Firestore
@@ -78,11 +85,11 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
 - **Como o app chama o servidor:** por `fetch` em `https://us-central1-dieta-alexandre.cloudfunctions.net/<nome>` com o token do usuário. Não usar o SDK de functions, porque ele quebra o service worker das notificações.
 
 ## O que já está pronto
-Login e assinatura manual, plano da nutricionista (por texto ou leitura com IA), modo "monte o seu", modo hábitos, água, peso, medidas, bioimpedância, musculação com ficha (semanas e periodização, descanso, recordes, cartão de story), cardio, suplementos e remédios com estoque, notificações push, Minha Jornada com cartas para o futuro, grupos e desafios fase 1 (prontos, personalizado e perda de peso com ranking em %), refeições encolhidas, cópia de segurança do dia, relatório semanal, mensal e personalizado em imagem e PDF.
+Login e assinatura manual, plano da nutricionista (por texto ou leitura com IA), modo "monte o seu", modo hábitos, água, peso, medidas, bioimpedância, musculação com ficha (semanas e periodização, descanso, recordes, cartão de story), cardio, suplementos e remédios com estoque, notificações push, Minha Jornada com cartas para o futuro, grupos e desafios fase 1 (prontos, personalizado e perda de peso com ranking em %), refeições encolhidas, cópia de segurança do dia, relatório semanal, mensal e personalizado em imagem e PDF, Início personalizável (Simples, Completo ou Do meu jeito) com aba Mais, lista de compras e aviso de retorno à nutricionista.
 
 ## Pendências e próximos passos
 1. Apagar os 2 grupos órfãos "Desafio teste" (Editar › Encerrar).
-2. Área da nutricionista, versão mínima: só leitura, resumo semanal e mensal do paciente.
+2. Próximas melhorias do documento "CheckFit — melhorias para implementar e testar": link do profissional (substitui a ideia da área da nutricionista), teste grátis (depende de uma Cloud Function para liberar o acesso e, de preferência, de pagamento automático), fotos de progresso, bioimpedância por foto, indique e ganhe.
 3. Depois: pagamento automático, grupos fase 2, lojas (App Store e Google Play).
 4. Ideia em aberto: juntar as alterações quando o app for usado em dois aparelhos ao mesmo tempo (hoje vale a última gravação).
 5. Ideia pequena: mostrar "500 ml 💧" em vez de "0 kcal" nas refeições só de água.
