@@ -671,7 +671,13 @@ html.pwa .wrap{position:fixed;top:0;bottom:0;left:0;right:0;overflow-y:auto;over
 :root[data-theme="dark"] .cs-p.med.ok{background:#2E2546}:root[data-theme="dark"] .cs-p.med.ok b,:root[data-theme="dark"] .cs-p.med.ok span,:root[data-theme="dark"] .cs-p.med b{color:#C4B1F0}
 /* aba Mais */
 .mx-top{display:flex;align-items:center;gap:12px}.mx-top h2{margin:0}
-.mx-modo{display:flex;align-items:center;gap:14px}
+.ini b{font-size:15.5px}.ini small{display:block;line-height:1.35}
+.ini-l{margin-top:10px;border-top:1px solid var(--line)}
+.ini-r{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.ini-r:not(.on) .mx-tx b{color:var(--muted)}
+.ini-mv{display:flex;flex-direction:column;gap:4px;flex:none}
+.ini-b{width:36px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:11px;cursor:pointer;padding:0}
+.ini-b[disabled]{opacity:.3}
 .mx-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.mx-tx b{font-size:15.5px}.mx-tx small{font-size:13px;color:var(--muted);line-height:1.35}
 .mx-sw{width:52px;height:32px;border-radius:99px;border:0;padding:3px;background:var(--line);display:flex;justify-content:flex-start;cursor:pointer;flex:none}
 .mx-sw span{width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
@@ -5155,7 +5161,31 @@ function relPerAct(a, b){
 }
 
 /* ---------- Modo simples: Início enxuto (só o que fazer hoje) e aba Mais ---------- */
-const modoSimples = () => !S.prof || S.prof.simples !== false;
+/* Início: Simples (padrão), Completo (como antes) ou Do meu jeito (módulos escolhidos) */
+const INI_SIMPLES = ['resumo', 'agora', 'treino', 'agenda'];
+const INI_MODS = {
+  resumo:['Resumo do dia', 'Anel da meta, remédios, refeições e água', (d, c) => casaResumo(d, c)],
+  agora:['Refeição da vez', 'A refeição do horário, para marcar', d => casaAgora(d)],
+  treino:['Treino de hoje', 'Ficha do dia e botão Começar', d => casaTreino(d)],
+  agenda:['Ainda hoje', 'Botões das outras refeições e remédios', d => casaAgenda(d)],
+  seq:['Sequência de dias', 'Dias seguidos e a semana', d => engTopo(d)],
+  agua:['Água completa', 'Copos, outras quantidades e desfazer', (d, c) => waterCard(d, c)],
+  remedios:['Suplementos e remédios', 'Lista completa com estoque', d => remCard(d)],
+  bem:['Como estou hoje', 'Humor, energia, sono e fome', d => bemCard(d)],
+  desafio:['Desafio da semana', 'Sua meta pequena da semana', d => desafioCard(d)],
+  grupos:['Grupos e desafios', 'Ranking com amigos', d => grpCard(d)],
+  peso:['Peso', 'Registrar o peso do dia', d => weightCard(d)],
+  calorias:['Calorias do dia', 'Consumidas, gastas e saldo', (d, c) => daySummary(d, c)],
+  jornada:['Minha Jornada', 'Seu diário', d => jorCard(d)]
+};
+function inicioModo(){ const p = S.prof || {}; if(p.iniModo === 'completo' || p.iniModo === 'meu' || p.iniModo === 'simples') return p.iniModo; return p.simples === false ? 'completo' : 'simples'; }
+const modoSimples = () => inicioModo() !== 'completo';
+function iniOrdem(){ const o = ((S.prof || {}).iniOrd || []).filter(k => INI_MODS[k]); Object.keys(INI_MODS).forEach(k => { if(!o.includes(k)) o.push(k); }); return o; }
+function iniLigados(){
+  if(inicioModo() === 'simples') return INI_SIMPLES.slice();
+  const on = (S.prof || {}).iniOn; const set = on && typeof on === 'object' ? on : Object.fromEntries(INI_SIMPLES.map(k => [k, 1]));
+  return iniOrdem().filter(k => set[k]);
+}
 function dataTopo(date){
   const d = parse(date), wd = d.toLocaleDateString('pt-BR', {weekday:'long'}).replace(/-feira$/, '');
   return wd.charAt(0).toUpperCase() + wd.slice(1) + ', ' + d.getDate() + ' de ' + d.toLocaleDateString('pt-BR', {month:'short'});
@@ -5203,9 +5233,9 @@ function casaTreino(date){
   else { nome = 'Dia de descanso'; sub = 'Quer treinar mesmo assim? Veja em Mais › Fichas de treino.'; btn = ''; }
   return `<section class="card cs-tr${done.length && !doing ? ' ok' : ''}" aria-label="Treino de hoje"><span class="cs-tri" aria-hidden="true">🏋️</span><div class="cs-trb"><span class="cs-eyebrow" style="margin:0">Treino ${date === today() ? 'de hoje' : 'do dia'}</span><b>${esc(nome)}</b><span class="sub">${esc(sub)}</span></div>${btn}</section>`;
 }
-function casaAgenda(date){
-  const aberta = casaMealId(date), itens = [];
-  PLAN.forEach(m => { if(m.id === aberta) return; const r = rec(date, m.id, false), f = mealFeita(m, r), sk = !!(r && r.skip); itens.push({h:m.time || '99:99', html:`<button class="cs-p${f ? (sk ? ' pul' : ' ok') : ''}" data-act="mtog" data-m="${m.id}" aria-label="${esc(m.name)}${f ? (sk ? ', pulada' : ', feita') : ''}"><b>${esc(m.name)}</b><span>${f ? (sk ? 'Pulei' : 'Feito ✓') : esc(m.time || '')}</span></button>`}); });
+function casaAgenda(date, semAgora){
+  const aberta = semAgora ? null : casaMealId(date), itens = [];
+  PLAN.forEach(m => { if(m.id === aberta) return; const r = rec(date, m.id, false), f = mealFeita(m, r), sk = !!(r && r.skip); itens.push({h:m.time || '99:99', html:`<button class="cs-p${f ? (sk ? ' pul' : ' ok') : ''}" data-act="cabre" data-m="${m.id}" aria-label="${esc(m.name)}${f ? (sk ? ', pulada' : ', feita') : ''}"><b>${esc(m.name)}</b><span>${f ? (sk ? 'Pulei' : 'Feito ✓') : esc(m.time || '')}</span></button>`}); });
   (remLista().length ? remDoses(date) : []).forEach(x => itens.push({h:x.h, html:`<button class="cs-p med${x.ok ? ' ok' : ''}" data-act="remtoma" data-d="${date}" data-k="${esc(x.k)}" aria-pressed="${x.ok}"><b>${CAPS}${esc(x.m.n)}</b><span>${x.h}${x.ok ? ' · Tomado' : ''}</span></button>`}));
   if(!itens.length) return '';
   itens.sort((a, b) => a.h < b.h ? -1 : a.h > b.h ? 1 : 0);
@@ -5213,7 +5243,14 @@ function casaAgenda(date){
 }
 function casaView(date, c){
   microCheck(date, c);
-  return cardioBanner() + instCard(date) + pushNudge(date) + retornoCard(date) + casaResumo(date, c) + casaAgora(date) + casaTreino(date) + casaAgenda(date)
+  const L = iniLigados(), temAgora = L.includes('agora'), escolhida = typeof S.mOpen[date] === 'string';
+  let h = '';
+  L.forEach(k => {
+    if(k === 'agenda'){ if(!temAgora && escolhida) h += casaAgora(date); h += casaAgenda(date, !temAgora && !escolhida); return; }
+    try{ h += INI_MODS[k][2](date, c) || ''; }catch(e){}
+  });
+  if(!temAgora && escolhida && !L.includes('agenda')) h = casaAgora(date) + h;
+  return cardioBanner() + instCard(date) + pushNudge(date) + retornoCard(date) + h
     + `<p class="note" style="text-align:center">Peso, medidas, atividades e o resto ficam no botão <b>＋</b> e na aba <b>Mais</b>.</p>`;
 }
 /* aba Mais */
@@ -5230,12 +5267,12 @@ const MAIS_SEC = {
 function maisView(){
   const sec = S.maisSec && MAIS_SEC[S.maisSec];
   if(sec) return `<section class="card mx-top" id="view-mais-${S.maisSec}"><button class="ghost" id="mx-back" data-act="maisback">‹ Voltar</button><h2>${sec[0]}</h2></section>` + sec[1]();
-  const on = modoSimples();
+  const md = inicioModo();
   const it = (act, ic, cor, t, s, extra) => `<button class="mx-it" data-act="${act}" ${extra || ''}><span class="mx-ic" style="background:${cor}" aria-hidden="true">${ic}</span><span class="mx-tx"><b>${t}</b><small>${s}</small></span><span class="mx-ch" aria-hidden="true">›</span></button>`;
   const sx = (k, ic, cor, s) => it('maisx', ic, cor, MAIS_SEC[k][0], s, `data-v="${k}"`);
   const conqN = (() => { try{ const t = conqCard().match(/(\d+) de (\d+)/); return t ? t[1] + ' de ' + t[2] + ' desbloqueadas' : 'Suas medalhas'; }catch(e){ return 'Suas medalhas'; } })();
   return `<section class="card" id="view-mais"><h2>Mais</h2></section>
-   <section class="card mx-modo"><div class="mx-tx"><b>Modo simples</b><small>${on ? 'Ligado: o Início mostra só o essencial. O resto fica aqui.' : 'Desligado: tudo aparece no Início.'}</small></div><button class="mx-sw${on ? ' on' : ''}" id="mx-simples" data-act="simples" aria-pressed="${on}" aria-label="Modo simples"><span></span></button></section>
+   ${iniCard(md)}
    <h2 class="cs-h">Acompanhar</h2><div class="mx-g">
     ${sx('bem', '🙂', 'var(--warn-bg,#FBEBCF)', 'Humor, energia, sono e fome')}
     ${sx('desafio', '🚩', '#FBE6D8', 'Escolha uma meta pequena')}
@@ -5261,8 +5298,22 @@ function maisView(){
     ${sx('perfil', '👤', 'var(--surface2)', 'Aparência, lembretes, meus dados')}
    </div>`;
 }
+function iniCard(md){
+  const ch = (v, t) => `<button class="chip" id="ini-${v}" data-act="inimodo" data-v="${v}" aria-pressed="${md === v}">${t}</button>`;
+  const txt = md === 'simples' ? 'Só o essencial: resumo, refeição da vez, treino e o que falta hoje. O resto fica aqui no Mais.' : md === 'completo' ? 'Tudo aparece no Início, como antes.' : 'Escolha o que aparece no Início e a ordem.';
+  let h = `<section class="card ini" id="ini-card"><b>Personalizar Início</b><div class="opts" style="padding:8px 0 4px" role="group" aria-label="Como o Início aparece">${ch('simples', 'Simples')}${ch('completo', 'Completo')}${ch('meu', 'Do meu jeito')}</div><small class="sub">${txt}</small>`;
+  if(md === 'meu'){
+    const ord = iniOrdem(), on = iniLigados();
+    h += `<div class="ini-l">${ord.map((k, i) => { const l = on.includes(k); return `<div class="ini-r${l ? ' on' : ''}"><div class="ini-mv"><button class="ini-b" id="ini-up-${k}" data-act="iniup" data-v="${k}" aria-label="Subir ${INI_MODS[k][0]}"${i === 0 ? ' disabled' : ''}>▲</button><button class="ini-b" id="ini-dn-${k}" data-act="inidn" data-v="${k}" aria-label="Descer ${INI_MODS[k][0]}"${i === ord.length - 1 ? ' disabled' : ''}>▼</button></div><div class="mx-tx"><b>${INI_MODS[k][0]}</b><small>${INI_MODS[k][1]}</small></div><button class="mx-sw${l ? ' on' : ''}" id="ini-on-${k}" data-act="initog" data-v="${k}" aria-pressed="${l}" aria-label="Mostrar ${INI_MODS[k][0]} no Início"><span></span></button></div>`; }).join('')}</div>
+      <p class="tip" style="margin:8px 0 0">Avisos importantes (treino em andamento, retorno à nutricionista) sempre aparecem.</p>`;
+  }
+  return h + `</section>`;
+}
+function iniSalvaOn(list){ S.prof.iniOn = Object.fromEntries(list.map(k => [k, 1])); }
 function casaAct(a, b){
-  if(a === 'simples'){ S.prof.simples = !modoSimples(); saveProf(); toast(S.prof.simples ? 'Modo simples ligado' : 'Modo simples desligado: tudo aparece no Início'); render(); return true; }
+  if(a === 'inimodo'){ const v = b.dataset.v; if(v === 'meu' && !(S.prof.iniOn && typeof S.prof.iniOn === 'object')) iniSalvaOn(INI_SIMPLES); if(v === 'meu' && !(S.prof.iniOrd || []).length) S.prof.iniOrd = iniOrdem(); S.prof.iniModo = v; S.prof.simples = v !== 'completo'; saveProf(); render(); return true; }
+  if(a === 'initog'){ const k = b.dataset.v, L = iniLigados(); if(L.includes(k)){ if(L.length === 1){ toast('Deixe pelo menos um item no Início.'); return true; } iniSalvaOn(L.filter(x => x !== k)); } else iniSalvaOn(L.concat(k)); saveProf(); render(); return true; }
+  if(a === 'iniup' || a === 'inidn'){ const k = b.dataset.v, o = iniOrdem(), i = o.indexOf(k), j = a === 'iniup' ? i - 1 : i + 1; if(j < 0 || j >= o.length) return true; [o[i], o[j]] = [o[j], o[i]]; S.prof.iniOrd = o; saveProf(); render(); return true; }
   if(a === 'maisx'){ S.maisSec = b.dataset.v; render(); window.scrollTo(0, 0); return true; }
   if(a === 'maisback'){ S.maisSec = null; render(); window.scrollTo(0, 0); return true; }
   return false;
@@ -5415,6 +5466,7 @@ function mealCompacto(date, m){
   return h + `</section>`;
 }
 function compactoAct(a, b){
+  if(a === 'cabre'){ const d = S.date, mid = b.dataset.m; S.mOpen[d] = S.mOpen[d] === mid ? null : mid; render(); setTimeout(() => { const el = document.getElementById('meal-' + mid); if(el) el.scrollIntoView({block:'start', behavior:'smooth'}); }, 30); return true; }
   if(a === 'ctroca'){ S.cTroca = S.cTroca === b.dataset.v ? null : b.dataset.v; render(); return true; }
   if(a === 'cextra'){ S.cExtra = S.cExtra === b.dataset.m ? null : b.dataset.m; render(); if(S.cExtra) setTimeout(() => { const i = document.getElementById('xn-' + b.dataset.m); if(i) i.focus(); }, 50); return true; }
   return false;
@@ -6135,8 +6187,8 @@ document.addEventListener('click',e=>{
   if(a==='posttreinox'){ postAbrir(b.dataset.k, String(b.dataset.ini)); return; }
   if(/^post(dia|treino|close|m|share|modo|copy|pos)$/.test(a)){ postAct(a,b); return; }
   if(/^mto(g|das)$/.test(a) && mealAct(a,b)) return;
-  if(/^(ctroca|cextra)$/.test(a) && compactoAct(a,b)) return;
-  if(/^(simples|maisx|maisback)$/.test(a) && casaAct(a,b)) return;
+  if(/^(cabre|ctroca|cextra)$/.test(a) && compactoAct(a,b)) return;
+  if(/^(inimodo|initog|iniup|inidn|maisx|maisback)$/.test(a) && casaAct(a,b)) return;
   if(/^(compras|lcback|lcdias|lcopc|lcok|lctenho|lclimpa|lczap|lccopiar)$/.test(a) && comprasAct(a,b)) return;
   if(/^(retrel|retadia|retprazo)$/.test(a) && retornoAct(a,b)) return;
   if(a==='btab'){setTab(b.dataset.v); return;}
