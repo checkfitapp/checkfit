@@ -700,6 +700,32 @@ html.pwa .wrap{position:fixed;top:0;bottom:0;left:0;right:0;overflow-y:auto;over
 .lc-q{width:100%;max-width:240px;margin:4px 0 2px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:10px;padding:6px 10px;font:inherit;font-size:16px;font-weight:700}
 .lc-tenho{font-size:13px;flex:none}
 .lc-it.tem .lc-tx b{color:var(--muted)}
+.tp-l{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#nutri{display:block;min-width:0;max-width:calc(100vw - 190px)}
+.mc{padding:14px 16px 10px;border:2px solid var(--ok)}
+.mc-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.mc-hd h2{margin:0;font-size:20px}.mc-hd h2 small{font-size:14px;font-weight:600;color:var(--muted)}
+.mc-all{min-height:44px;flex:none;background:var(--accent-soft);font-weight:700}
+.mc-opts{padding:8px 0 0}
+.mc-its{margin-top:6px}
+.mc-it{display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid var(--line)}
+.mc-it:first-child{border-top:0}
+.mc-ck{width:28px;height:28px;border-radius:8px;border:2px solid var(--muted);background:var(--surface);color:transparent;display:grid;place-items:center;flex:none;padding:0;cursor:pointer}
+.mc-ck svg{width:16px;height:16px}
+.mc-it.on .mc-ck{background:var(--ok);border-color:var(--ok);color:#fff}
+.mc-n{flex:1;min-width:0;font-size:15.5px;line-height:1.3}.mc-n small{color:var(--muted)}
+.mc-it.on .mc-n{color:var(--muted);text-decoration:line-through}
+.mc-q{color:var(--muted);font-size:13px;white-space:nowrap}
+.mc-tr{font-size:13px;font-weight:700;white-space:nowrap;padding:8px 0 8px 4px;min-height:40px}
+.mc-tr.q2{color:var(--muted);font-weight:600}
+.mc-pn{background:var(--surface2);border-radius:14px;padding:10px 12px;margin:0 0 8px}
+.mc-pn .choices{margin:0 0 8px}
+.mc-qt{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mc-ft{display:flex;justify-content:space-between;gap:10px;margin-top:6px}
+.mc-ft .linkbtn{font-weight:700;min-height:40px}
+.mc-skip{color:var(--muted)}.mc-skip.on{color:var(--bad)}
+.mc-ex{margin-top:6px;display:flex;flex-direction:column;gap:8px}
+.mc-tip{margin-top:6px;font-size:14px;color:var(--muted)}.mc-tip summary{cursor:pointer;font-weight:600}.mc-tip p{margin:6px 0 0}
 @media (max-width:380px){.cs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
@@ -767,7 +793,7 @@ const fmtL = ml => (ml/1000).toLocaleString('pt-BR',{minimumFractionDigits:1,max
 let REF = 0;
 function computeRef(){return PLAN.reduce((s,m)=>s+m.options[0].items.filter(i=>!i.opt).reduce((a,i)=>a+i.ch[0][2],0),0);}
 function validPlan(p){return p&&Array.isArray(p.meals)&&p.meals.length&&p.meals.every(m=>m&&m.id&&m.name&&Array.isArray(m.options)&&m.options.length&&m.options.every(o=>Array.isArray(o.items)&&o.items.every(it=>it&&it.k&&Array.isArray(it.ch)&&it.ch.length)));}
-function setPlan(p){PLANINFO=p||null; PLAN=p?p.meals:[]; REF=computeRef(); const n=document.getElementById('nutri'); if(n) n.textContent=p&&p.nutri?'Plano de '+p.nutri:'Checklist diário de saúde';}
+function setPlan(p){PLANINFO=p||null; PLAN=p?p.meals:[]; REF=computeRef(); try{ topoProfs(); }catch(e){} }
 
 /* ---------- Estado ---------- */
 const S = {view:'dia', tab:'inicio', aj:ajVazio(), date:ymd(new Date()), days:{}, custom:[], db:null, local:false, timers:{}, ready:false, prof:{...PROF_DEF}, tf:{t:'musculacao',min:60,i:1}, profOpen:false};
@@ -5164,7 +5190,7 @@ function casaAgora(date){
     return `<section class="card cs-vazio" aria-label="Dieta"><b>${todas ? 'Todas as refeições ' + (date === today() ? 'de hoje' : 'deste dia') + ' feitas ✓' : 'Escolha uma refeição abaixo'}</b><div class="sub">${todas ? 'Mandou bem! Se precisar corrigir algo, toque na refeição abaixo.' : 'Toque numa refeição para marcar o que comeu.'}</div></section>`;
   }
   const daVez = mid === mealDaVez(date) && date === today();
-  return `<div class="cs-eyebrow">${ehHabitos() ? 'Hábitos' : 'Dieta'} · ${daVez ? 'agora' : 'refeição escolhida'}${m.time ? ' ' + esc(m.time) : ''}</div>` + mealCard(date, m);
+  return `<div class="cs-eyebrow">${ehHabitos() ? 'Hábitos' : 'Dieta'} · ${daVez ? 'agora' : 'refeição escolhida'}${m.time ? ' ' + esc(m.time) : ''}</div>` + mealCompacto(date, m);
 }
 function casaTreino(date){
   const T = S.treino;
@@ -5363,6 +5389,46 @@ document.addEventListener('change', e => {
   if(t.dataset && t.dataset.lcq != null){ const L = lcEstado(), v = t.value.trim(); if(v) L.edit[t.dataset.lcq] = v; else delete L.edit[t.dataset.lcq]; lcSalvar(); render(); }
   else if(t.id === 'lc-dias'){ const n = parseInt(t.value, 10); if(n > 0){ lcEstado().dias = Math.min(31, n); lcSalvar(); render(); } }
 });
+
+/* refeição compacta do Início simples: uma linha por item; trocas e quantidade ao tocar em "trocar" */
+function mealCompacto(date, m){
+  const r = rec(date, m.id, false), calc = mealCalc(m, r), oi = (r && r.opt) || 0, opt = m.options[oi] || m.options[0], p = mealProg(m, r), skip = !!(r && r.skip);
+  let h = `<section class="card meal mc" id="meal-${m.id}" aria-label="${esc(m.name)}">
+   <div class="mc-hd"><div><h2>${esc(m.name)} <small class="num">${skip ? 'pulada' : p.on + ' de ' + p.tot}</small></h2><span class="sub num">${fmt(calc.kcal)} kcal</span></div><button class="ghost mc-all" id="all-${m.id}" data-act="mealall" data-m="${m.id}">Marcar tudo</button></div>`;
+  if(m.options.length > 1) h += `<div class="opts mc-opts" role="group" aria-label="Opções">${m.options.map((o, i) => `<button class="chip${o.aj ? ' mine' : ''}" id="opt-${m.id}-${i}" data-act="opt" data-m="${m.id}" data-o="${i}" aria-pressed="${i === oi}">${esc(o.label)}</button>`).join('')}</div>`;
+  h += `<div class="mc-its">`;
+  opt.items.forEach(it => {
+    const ir = itemRec(r, oi, it.k), ch = it.ch[ir.c || 0] || it.ch[0], mult = ir.m || 1, id = `${m.id}-${oi}-${it.k}`, aberto = S.cTroca === m.id + '|' + oi + '|' + it.k;
+    h += `<div class="mc-it${ir.on ? ' on' : ''}"><button class="mc-ck" id="chk-${id}" data-act="check" data-m="${m.id}" data-k="${it.k}" aria-pressed="${!!ir.on}" aria-label="Comi ${esc(ch[0])}">${CHECK}</button>
+      <span class="mc-n">${esc(ch[0])}${it.opt ? ' <small>(opcional)</small>' : ''}</span><span class="mc-q num">${esc(ch[1])}${mult !== 1 ? ' · ' + String(mult).replace('.', ',') + '×' : ''}</span>
+      <button class="linkbtn mc-tr${it.ch.length > 1 ? '' : ' q2'}" id="tr-${id}" data-act="ctroca" data-v="${m.id}|${oi}|${it.k}" aria-expanded="${aberto}">${it.ch.length > 1 ? 'trocar' : 'qtd'} ›</button></div>`;
+    if(aberto) h += `<div class="mc-pn">${it.ch.length > 1 ? `<div class="choices" role="group" aria-label="Trocar por">${it.ch.map((x, i) => `<button class="chip${x[3] ? ' mine' : ''}" id="ch-${id}-${i}" data-act="choice" data-m="${m.id}" data-k="${it.k}" data-c="${i}" aria-pressed="${i === (ir.c || 0)}">${esc(x[0])}</button>`).join('')}</div>` : ''}
+      <div class="mc-qt"><span class="sub">Quantidade</span><div class="step"><button id="dn-${id}" data-act="mult" data-m="${m.id}" data-k="${it.k}" data-d="-0.5" aria-label="Menos">−</button><span class="num">${String(mult).replace('.', ',')}×</span><button id="up-${id}" data-act="mult" data-m="${m.id}" data-k="${it.k}" data-d="0.5" aria-label="Mais">+</button></div><span class="sub num">${esc(ch[1])} · ${fmt(ch[2] * mult)} kcal</span></div></div>`;
+  });
+  h += `</div>`;
+  const ex = (r && r.extras) || [];
+  if(ex.length) h += `<div class="extras">${ex.map((e, i) => `<div class="extra"><b>${esc(e.n)}</b><span class="num">${fmt(e.kcal)} kcal</span><button class="x" id="rx-${m.id}-${i}" data-act="rmextra" data-m="${m.id}" data-i="${i}" aria-label="Remover ${esc(e.n)}">✕</button></div>`).join('')}</div>`;
+  const exOpen = S.cExtra === m.id;
+  h += `<div class="mc-ft"><button class="linkbtn" id="cx-${m.id}" data-act="cextra" data-m="${m.id}" aria-expanded="${exOpen}">+ Comi algo fora do plano</button><button class="linkbtn mc-skip${skip ? ' on' : ''}" id="skip-${m.id}" data-act="skip" data-m="${m.id}" aria-pressed="${skip}">${skip ? 'Desfazer "pulei"' : 'Pulei'}</button></div>`;
+  if(exOpen) h += `<div class="mc-ex"><button class="ghost fbtn" id="fb-${m.id}" data-act="foodopen" data-m="${m.id}">🔍 Buscar alimento na tabela TACO</button><form class="addx" data-m="${m.id}"><input id="xn-${m.id}" list="foods" placeholder="O que você comeu?" aria-label="Alimento extra" autocomplete="off"><input id="xk-${m.id}" inputmode="numeric" placeholder="kcal" aria-label="Calorias"><button type="submit">Somar</button></form></div>`;
+  if(m.tip) h += `<details class="mc-tip"><summary>💡 Dica da nutricionista</summary><p>${esc(m.tip)}</p></details>`;
+  return h + `</section>`;
+}
+function compactoAct(a, b){
+  if(a === 'ctroca'){ S.cTroca = S.cTroca === b.dataset.v ? null : b.dataset.v; render(); return true; }
+  if(a === 'cextra'){ S.cExtra = S.cExtra === b.dataset.m ? null : b.dataset.m; render(); if(S.cExtra) setTimeout(() => { const i = document.getElementById('xn-' + b.dataset.m); if(i) i.focus(); }, 50); return true; }
+  return false;
+}
+/* topo: nutricionista e personal */
+function topoProfs(){
+  const el = document.getElementById('nutri'); if(!el) return;
+  const linhas = [];
+  if(PLANINFO && PLANINFO.nutri) linhas.push('🍽️ ' + PLANINFO.nutri);
+  else if(PLAN.length && !ehHabitos()) linhas.push('🍽️ Plano próprio');
+  if(S.treino) linhas.push('🏋️ ' + (S.treino.prof ? 'Personal: ' + S.treino.prof : (S.trnOrig === 'proprio' ? 'Treino próprio' : 'Ficha de treino')));
+  const html = linhas.length ? linhas.map(t => `<span class="tp-l">${esc(t)}</span>`).join('') : 'Checklist diário de saúde';
+  if(el.innerHTML !== html) el.innerHTML = html;
+}
 
 /* ---------- Treino de musculação: ficha, modo treinar, descanso, recordes ---------- */
 const WD_LONG = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
@@ -5760,7 +5826,7 @@ function render(){
   if(S.mode==='compras'){ head(false); mount('compras', ban+comprasView()); return; }
   if(!PLAN.length){ document.getElementById('tabs').hidden=true; document.getElementById('navbar').hidden=true; const ta=document.getElementById('impt'); if(!(ta && ta.value) || S.lastView!=='plan') app.innerHTML=ban+caminhoView(); S.lastView='plan'; return; }
   const active=document.activeElement && document.activeElement.id;
-  S.lastView='app';
+  S.lastView='app'; try{ topoProfs(); }catch(e){}
   engVerifica();
   if(S.remIrDepois){ S.remIrDepois=false; setTimeout(remIr,50); }
   setTimeout(grpConvitePendente, 0);
@@ -6069,6 +6135,7 @@ document.addEventListener('click',e=>{
   if(a==='posttreinox'){ postAbrir(b.dataset.k, String(b.dataset.ini)); return; }
   if(/^post(dia|treino|close|m|share|modo|copy|pos)$/.test(a)){ postAct(a,b); return; }
   if(/^mto(g|das)$/.test(a) && mealAct(a,b)) return;
+  if(/^(ctroca|cextra)$/.test(a) && compactoAct(a,b)) return;
   if(/^(simples|maisx|maisback)$/.test(a) && casaAct(a,b)) return;
   if(/^(compras|lcback|lcdias|lcopc|lcok|lctenho|lclimpa|lczap|lccopiar)$/.test(a) && comprasAct(a,b)) return;
   if(/^(retrel|retadia|retprazo)$/.test(a) && retornoAct(a,b)) return;
