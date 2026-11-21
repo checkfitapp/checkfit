@@ -738,6 +738,7 @@ html.pwa .wrap{position:fixed;top:0;bottom:0;left:0;right:0;overflow-y:auto;over
 .mc-ex{margin-top:6px;display:flex;flex-direction:column;gap:8px}
 .mc-tip{margin-top:6px;font-size:14px;color:var(--muted)}.mc-tip summary{cursor:pointer;font-weight:600}.mc-tip p{margin:6px 0 0}
 @media (max-width:380px){.cs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.cs-p.cur{box-shadow:inset 0 0 0 2px var(--accent)}
 </style>
 </head>
 <body>
@@ -5249,7 +5250,8 @@ function mealEstado(m, r){
 }
 function casaAgenda(date, semAgora){
   const aberta = semAgora ? null : casaMealId(date), itens = [];
-  PLAN.forEach(m => { if(m.id === aberta) return; const E = mealEstado(m, rec(date, m.id, false)); itens.push({h:m.time || '99:99', html:`<button class="cs-p ${E.cls}" data-act="cabre" data-m="${m.id}" aria-label="${esc(m.name)}, ${E.aria}"><b>${esc(m.name)}</b><span class="num">${E.sub || esc(m.time || '')}</span></button>`}); });
+  const vis = casaMealId(date);
+  PLAN.forEach(m => { const E = mealEstado(m, rec(date, m.id, false)); itens.push({h:m.time || '99:99', html:`<button class="cs-p ${E.cls}${!semAgora && m.id === vis ? ' cur' : ''}" data-act="cabre" data-m="${m.id}" aria-label="${esc(m.name)}, ${E.aria}"><b>${esc(m.name)}</b><span class="num">${E.sub || esc(m.time || '')}</span></button>`}); });
   (remLista().length ? remDoses(date) : []).forEach(x => itens.push({h:x.h, html:`<button class="cs-p med${x.ok ? ' ok' : ''}" data-act="remtoma" data-d="${date}" data-k="${esc(x.k)}" aria-pressed="${x.ok}"><b>${CAPS}${esc(x.m.n)}</b><span>${x.h}${x.ok ? ' · Tomado' : ''}</span></button>`}));
   if(!itens.length) return '';
   itens.sort((a, b) => a.h < b.h ? -1 : a.h > b.h ? 1 : 0);
@@ -5647,20 +5649,21 @@ function beepWav(){
   return URL.createObjectURL(new Blob([buf], {type:'audio/wav'}));
 }
 /* iPhone (iOS 16.4+): sessão de áudio "ambiente" mistura com a música em vez de pausá-la */
-function audioAmbiente(){ try{ if(navigator.audioSession && navigator.audioSession.type !== 'ambient') navigator.audioSession.type = 'ambient'; }catch(e){} }
+const somModo = () => (S.prof && S.prof.somModo === 'sempre') ? 'sempre' : 'misto';
+/* misto: toca junto com a música (respeita o silencioso); sempre: toca mesmo no silencioso (pausa a música) */
+function audioAmbiente(){ try{ if(navigator.audioSession){ const t = somModo() === 'sempre' ? 'playback' : 'ambient'; if(navigator.audioSession.type !== t) navigator.audioSession.type = t; } }catch(e){} }
 audioAmbiente();
 function audioUnlock(){
   if(S.prof && S.prof.somDesc === false) return;
   audioAmbiente();
-  if(navigator.audioSession){ try{ AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if(AC.state !== 'running') AC.resume(); }catch(e){} return; }
-  try{ AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if(AC.state !== 'running') AC.resume(); }catch(e){}
+  try{ AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if(AC.state !== 'running') AC.resume(); const sb = AC.createBuffer(1, 1, 22050), src0 = AC.createBufferSource(); src0.buffer = sb; src0.connect(AC.destination); src0.start(0); }catch(e){}
   try{ if(!BEEP_EL){ BEEP_EL = new Audio(beepWav()); BEEP_EL.preload = 'auto'; BEEP_EL.setAttribute('playsinline', ''); }
     if(!BEEP_OK){ BEEP_EL.muted = true; const p = BEEP_EL.play(); const fim = () => { try{ BEEP_EL.pause(); BEEP_EL.currentTime = 0; }catch(e){} BEEP_EL.muted = false; }; if(p && p.then) p.then(() => { BEEP_OK = true; fim(); }).catch(fim); else { BEEP_OK = true; fim(); } } }catch(e){}
 }
 function beep(){
   let tocou = false;
   audioAmbiente();
-  try{ if(BEEP_EL && BEEP_OK && S.prof.somDesc !== false && !navigator.audioSession){ BEEP_EL.muted = false; BEEP_EL.volume = 1; BEEP_EL.currentTime = 0; const p = BEEP_EL.play(); tocou = true; if(p && p.catch) p.catch(() => beepWA()); } }catch(e){ tocou = false; }
+  try{ if(BEEP_EL && BEEP_OK && S.prof.somDesc !== false){ BEEP_EL.muted = false; BEEP_EL.volume = 1; BEEP_EL.currentTime = 0; const p = BEEP_EL.play(); tocou = true; if(p && p.catch) p.catch(() => beepWA()); } }catch(e){ tocou = false; }
   if(!tocou && S.prof.somDesc !== false) beepWA();
   try{ if(navigator.vibrate) navigator.vibrate([250, 120, 250]); }catch(e){}
   const bar = document.getElementById('restbar'); if(bar){ bar.classList.remove('fim'); void bar.offsetWidth; bar.classList.add('fim'); }
@@ -5752,7 +5755,7 @@ function treinoView(){
    <div class="thead"><div><div class="eyebrow">${T.rotulo === 'nome' ? 'Treino ' + (T.fichas.indexOf(f) + 1) + ' de ' + T.fichas.length : esc(lbl(f.id))}${sess.sem ? ' · semana ' + sess.sem : ''}</div><h2>${esc(f.nome)}</h2></div><div class="tclock num" id="sessclock">${fmtClock(((sess.fim || Date.now()) - sess.ini) / 1000)}</div></div>
    ${f.obs ? `<p class="sub" style="margin:0">${esc(f.obs)}</p>` : ''}
    <div class="sub num">${r.series} séries feitas · ${fmt(r.vol)} kg levantados${r.prs ? ' · ' + r.prs + ' recorde(s)' : ''}</div>
-   ${S.somTip ? `<div class="somtip"><b>Ouviu o bipe?</b> Se não ouviu: aumente o volume do iPhone. Se ainda assim não tocar, confira se o modo silencioso está ligado. O som só toca com o CheckFit aberto na tela. <button class="ghost eb" data-act="tsomoff" style="margin-top:6px">Desligar o som do descanso</button></div>` : ''}
+   ${S.somTip ? `<div class="somtip"><b>Ouviu o bipe?</b> Se não ouviu, aumente o volume. O som só toca com o CheckFit aberto na tela.<div class="opts" style="padding:8px 0 2px" role="group" aria-label="Como tocar o som"><button class="chip" id="som-misto" data-act="tsommodo" data-v="misto" aria-pressed="${somModo() === 'misto'}">Junto com a música</button><button class="chip" id="som-sempre" data-act="tsommodo" data-v="sempre" aria-pressed="${somModo() === 'sempre'}">Sempre, mesmo no silencioso</button></div><small style="display:block;margin-bottom:4px">${somModo() === 'misto' ? 'Não pausa a sua música, mas não toca com o iPhone no silencioso.' : 'Toca mesmo no silencioso, mas pausa a música enquanto o app está aberto.'}</small><button class="ghost eb" data-act="tsomoff" style="margin-top:6px">Desligar o som do descanso</button></div>` : ''}
    ${f.prep ? `<label class="prep" for="t-prep"><input type="checkbox" id="t-prep" data-act="tprep" ${sess.prep ? 'checked' : ''}${ro ? ' disabled' : ''}> <span>${esc(f.prep)}</span></label>` : ''}
    <div class="row"><button class="ghost" id="tv-back" data-act="tback">← Diário</button><button class="ghost" id="t-som" data-act="tsom" aria-pressed="${S.prof.somDesc !== false}">${S.prof.somDesc !== false ? '🔔 Testar som' : '🔕 Som desligado'}</button>${ro ? `<button class="primary" id="tv-post" data-act="posttreino" data-ini="${sess.ini}">📸 Postar</button><button class="ghost" id="tv-reopen" data-act="treopen">Editar treino</button>` : `<button class="primary" id="tv-fin" data-act="tfinish">Finalizar treino</button>`}</div>
   </section>`;
@@ -6191,6 +6194,7 @@ document.addEventListener('click',e=>{
   if(a==='tab'){S.view=b.dataset.v; if(S.view!=='dia') S.evolV=S.view; render();}
   if(/^j(or|back|tag|fil|save|cancel|cartatog|prazo|edit|del|apoiook|reload|carta|pdf|pdfshare|img|imgclose|imgshare)$/.test(a)){ jorAct(a,b); return; }
   if(a==='tsom'){ audioUnlock(); if(S.prof.somDesc === false){ S.prof.somDesc = true; saveProf(); } S.somTip = true; render(); setTimeout(beep, 150); return; }
+  if(a==='tsommodo'){ S.prof.somModo = b.dataset.v; saveProf(); audioAmbiente(); audioUnlock(); render(); setTimeout(beep, 200); return; }
   if(a==='tsomoff'){ S.prof.somDesc = false; S.somTip = false; saveProf(); render(); return; }
   if(/^c(open|back|set|start|pause|adj|fin|desc)$/.test(a)){ cardioAct(a,b); return; }
   if(/^w(open|back|bench|fmt|cat|int|save|lift|liftx|liftsave|tgo|tok|tx|tr|tperd)$/.test(a)){ wodAct(a,b); return; }
