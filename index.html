@@ -3144,7 +3144,7 @@ async function jorAct(a, b){
 }
 
 /* ---------- Posts para Stories: treino concluído e meu dia ---------- */
-async function postFonts(){ try{ if(document.fonts && document.fonts.load) await Promise.race([Promise.all([document.fonts.load('800 30px Montserrat'), document.fonts.load('400 16px Inter')]), new Promise(r => setTimeout(r, 1500))]); }catch(e){} }
+async function postFonts(){ try{ if(document.fonts && document.fonts.load) await Promise.race([Promise.all([document.fonts.load('800 30px Montserrat'), document.fonts.load('italic 800 30px Montserrat'), document.fonts.load('700 16px Montserrat'), document.fonts.load('400 16px Inter')]), new Promise(r => setTimeout(r, 1500))]); }catch(e){} }
 function postFundo(titulo, sub){
   const W = 1080, H = 1920, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d');
   const bg = x.createLinearGradient(0, 0, W * 0.4, H); bg.addColorStop(0, '#0B2E3D'); bg.addColorStop(0.6, '#0F4049'); bg.addColorStop(1, '#11505A'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
@@ -3219,12 +3219,13 @@ async function meuDiaImg(date, mostrar){
 /* janela de compartilhar */
 async function postAbrir(kind, ref, modo){
   const old = S.post && S.post.kind === kind && S.post.ref === ref ? S.post : null;
-  S.post = {kind, ref, modo:modo || (old && old.modo) || 'cartao', mostrar:old ? old.mostrar : false, foto:old ? old.foto : null, pos:old ? old.pos : 'barra', loading:true}; S.plus = false; render();
+  S.post = {kind, ref, modo:modo || (old && old.modo) || 'cartao', fig:old ? old.fig : null, mostrar:old ? old.mostrar : false, foto:old ? old.foto : null, pos:old ? old.pos : 'barra', loading:true}; S.plus = false; render();
   const P = S.post;
   if(P.modo === 'foto' && !P.foto){ P.loading = false; render(); return; }
   try{
-    const cv = P.modo === 'adesivo' ? await adesivoPng(kind, ref, P.mostrar, P.pos) : P.modo === 'foto' ? await comFotoPng(kind, ref, P.mostrar, P.foto, P.pos) : await cartaoPor(kind, ref, P.mostrar);
-    const blob = await cvBlob(cv), nome = ({treino:'Treino-concluido', cardio:'Cardio', wod:'WOD'}[kind] || 'Meu-dia') + (P.modo === 'adesivo' ? '-adesivo' : '') + '-CheckFit.png';
+    if(P.modo === 'figura' && !P.fig) P.fig = (kind === 'cardio' ? FG_CARDIO : kind === 'dia' ? FG_DIA : FG_TREINO)[0][0];
+    const cv = P.modo === 'figura' ? await figuraPng(kind, ref, P.fig) : P.modo === 'adesivo' ? await adesivoPng(kind, ref, P.mostrar, P.pos) : P.modo === 'foto' ? await comFotoPng(kind, ref, P.mostrar, P.foto, P.pos) : await cartaoPor(kind, ref, P.mostrar);
+    const blob = await cvBlob(cv), nome = ({treino:'Treino-concluido', cardio:'Cardio', wod:'WOD'}[kind] || 'Meu-dia') + (P.modo === 'adesivo' ? '-adesivo' : P.modo === 'figura' ? '-figurinha' : '') + '-CheckFit.png';
     let file = null; try{ file = new File([blob], nome, {type:'image/png'}); }catch(e){}
     if(S.post !== P) return; Object.assign(P, {loading:false, blob, url:URL.createObjectURL(blob), nome, file, share:!!(file && navigator.canShare && navigator.canShare({files:[file]}))}); }
   catch(e){ if(S.post === P){ P.loading = false; P.erro = true; } }
@@ -3232,20 +3233,22 @@ async function postAbrir(kind, ref, modo){
 }
 function postSheet(){
   const P = S.post; if(!P) return '';
-  const modos = [['cartao', 'Cartão'], ['adesivo', 'Adesivo'], ['foto', 'Com minha foto']];
+  const temFig = P.kind === 'treino' || P.kind === 'cardio' || P.kind === 'dia', modos = [['cartao', 'Cartão']].concat(temFig ? [['figura', 'Figurinha']] : [], [['adesivo', 'Adesivo'], ['foto', 'Com minha foto']]);
   const dicas = {cartao:'No Instagram: toque em Compartilhar, escolha Instagram e depois Stories.',
     adesivo:'Adesivo sem fundo para colocar sobre a sua foto. Toque em <b>Copiar adesivo</b>, abra os Stories do Instagram, escolha sua foto e toque em <b>Colar</b> (ou toque na tela e cole). Ele aparece por cima e você pode mover e ajustar o tamanho.',
+    figura:'Figurinha sem fundo para colar sobre a sua foto ou vídeo. Toque em <b>Copiar figurinha</b>, abra os Stories do Instagram e toque em <b>Colar</b>. Dá para mover e ajustar o tamanho.',
     foto:'Escolha uma foto sua (da galeria ou tire na hora). O CheckFit coloca as informações do treino por cima. A foto não sai do seu celular.'};
   const prev = P.loading ? '<p class="sub">Montando a imagem…</p>' : P.erro ? '<p class="lmsg">Não consegui montar a imagem neste aparelho.</p>' : !P.url ? '' : `<div class="row">
-      ${P.modo === 'adesivo' && navigator.clipboard && window.ClipboardItem ? '<button class="primary" id="post-copy" data-act="postcopy">Copiar adesivo</button>' : ''}
-      ${P.share ? `<button class="${P.modo === 'adesivo' && navigator.clipboard && window.ClipboardItem ? 'ghost' : 'primary'}" id="post-share" data-act="postshare">${P.modo === 'adesivo' ? 'Salvar ou enviar' : 'Compartilhar (Instagram, WhatsApp…)'}</button>` : ''}
+      ${(P.modo === 'adesivo' || P.modo === 'figura') && navigator.clipboard && window.ClipboardItem ? `<button class="primary" id="post-copy" data-act="postcopy">${P.modo === 'figura' ? 'Copiar figurinha' : 'Copiar adesivo'}</button>` : ''}
+      ${P.share ? `<button class="${(P.modo === 'adesivo' || P.modo === 'figura') && navigator.clipboard && window.ClipboardItem ? 'ghost' : 'primary'}" id="post-share" data-act="postshare">${P.modo === 'adesivo' || P.modo === 'figura' ? 'Salvar ou enviar' : 'Compartilhar (Instagram, WhatsApp…)'}</button>` : ''}
       <a class="${P.share ? 'ghost' : 'primary'} relbtnl" href="${P.url}" download="${esc(P.nome)}" target="_blank" rel="noopener">${P.share ? 'Abrir imagem' : 'Baixar imagem'}</a></div>
-      <img class="semimg${P.modo === 'adesivo' ? ' adprev' : ''}" src="${P.url}" alt="Imagem para postar">`;
+      <img class="semimg${P.modo === 'adesivo' || P.modo === 'figura' ? ' adprev' : ''}" src="${P.url}" alt="Imagem para postar">`;
   return `<div class="sheetbg" data-act="postclose"></div><div class="sheet" role="dialog" aria-label="Postar"><div class="sheeth"><b>${{treino:'Treino concluído! 💪', cardio:'Cardio concluído! 🔥', wod:'WOD concluído! 🏋️'}[P.kind] || 'Postar meu dia'}</b><button class="ghost" data-act="postclose">Fechar</button></div>
     <div class="opts" style="padding:0 0 8px" role="group" aria-label="Formato">${modos.map(([v, n]) => `<button class="chip" data-act="postmodo" data-v="${v}" aria-pressed="${P.modo === v}">${n}</button>`).join('')}</div>
-    ${P.kind === 'dia' ? `<label class="prep" for="post-m" style="margin:0 0 8px"><input type="checkbox" id="post-m" data-act="postm" ${P.mostrar ? 'checked' : ''}> <span>Mostrar calorias${P.modo === 'cartao' ? ' e peso' : ''} na imagem</span></label>` : ''}
+    ${P.kind === 'dia' && P.modo !== 'figura' ? `<label class="prep" for="post-m" style="margin:0 0 8px"><input type="checkbox" id="post-m" data-act="postm" ${P.mostrar ? 'checked' : ''}> <span>Mostrar calorias${P.modo === 'cartao' ? ' e peso' : ''} na imagem</span></label>` : ''}
     <p class="tip" style="margin:0 0 8px">${dicas[P.modo]}</p>
     ${P.modo === 'foto' ? `<label class="${P.foto ? 'ghost' : 'primary'} relbtnl" for="post-foto" style="display:flex;justify-content:center;margin-bottom:8px">📷 ${P.foto ? 'Trocar foto' : 'Escolher foto'}</label><input type="file" id="post-foto" accept="image/*" hidden>${P.foto ? `<div class="opts" style="padding:0 0 8px" role="group" aria-label="Posição"><span class="sub" style="align-self:center">Estilo:</span><button class="chip" data-act="postpos" data-v="barra" aria-pressed="${P.pos === 'barra'}">Barra discreta</button><button class="chip" data-act="postpos" data-v="rodape" aria-pressed="${P.pos === 'rodape'}">Faixa embaixo</button><button class="chip" data-act="postpos" data-v="topo" aria-pressed="${P.pos === 'topo'}">Faixa em cima</button></div>` : ''}` : ''}
+    ${P.modo === 'figura' ? `<div class="opts" style="padding:0 0 8px" role="group" aria-label="Modelo"><span class="sub" style="align-self:center">Modelo:</span>${(P.kind === 'cardio' ? FG_CARDIO : P.kind === 'dia' ? FG_DIA : FG_TREINO).map(([v, n]) => `<button class="chip" data-act="postfig" data-v="${v}" aria-pressed="${P.fig === v}">${n}</button>`).join('')}</div>` : ''}
     ${P.modo === 'adesivo' ? `<div class="opts" style="padding:0 0 8px" role="group" aria-label="Estilo"><span class="sub" style="align-self:center">Estilo:</span><button class="chip" data-act="postpos" data-v="barra" aria-pressed="${P.pos === 'barra'}">Barra discreta</button><button class="chip" data-act="postpos" data-v="rodape" aria-pressed="${P.pos !== 'barra'}">Completo</button></div>` : ''}
     ${prev}</div>`;
 }
@@ -3260,7 +3263,8 @@ function postAct(a, b){
   if(a === 'postm'){ const P = S.post; if(P){ P.mostrar = !!b.checked; postAbrir('dia', P.ref); } return true; }
   if(a === 'postpos'){ const P = S.post; if(P){ P.pos = b.dataset.v; postAbrir(P.kind, P.ref, P.modo); } return true; }
   if(a === 'postmodo'){ const P = S.post; if(P) postAbrir(P.kind, P.ref, b.dataset.v); return true; }
-  if(a === 'postcopy'){ const P = S.post; if(P && P.blob){ try{ navigator.clipboard.write([new ClipboardItem({'image/png':P.blob})]).then(() => toast('Adesivo copiado! Agora abra os Stories e cole.')).catch(() => toast('Não consegui copiar. Use Salvar ou enviar.')); }catch(e){ toast('Não consegui copiar. Use Salvar ou enviar.'); } } return true; }
+  if(a === 'postfig'){ const P = S.post; if(P){ P.fig = b.dataset.v; postAbrir(P.kind, P.ref, 'figura'); } return true; }
+  if(a === 'postcopy'){ const P = S.post; if(P && P.blob){ try{ navigator.clipboard.write([new ClipboardItem({'image/png':P.blob})]).then(() => toast((P.modo === 'figura' ? 'Figurinha' : 'Adesivo') + ' copiad' + (P.modo === 'figura' ? 'a' : 'o') + '! Agora abra os Stories e cole.')).catch(() => toast('Não consegui copiar. Use Salvar ou enviar.')); }catch(e){ toast('Não consegui copiar. Use Salvar ou enviar.'); } } return true; }
   if(a === 'postshare'){ const P = S.post; if(P && P.file) navigator.share({files:[P.file]}).catch(() => {}); return true; }
   return false;
 }
@@ -3659,9 +3663,12 @@ function cardioAct(a, b){
 function cardioInput(t){ if(!S.cs) return false; if(t.id === 'cs-vel'){ S.cs.vel = t.value; return true; } if(t.id === 'cs-incl'){ S.cs.incl = t.value; return true; } return false; }
 /* dados para posts */
 function cardioPostDados(ini){
-  let date = null, tr = null; Object.keys(S.days).some(d => { const z = ((S.days[d] || {}).treinos || []).find(q => String(q.ini) === String(ini) && q.cardio); if(z){ date = d; tr = z; return true; } return false; });
-  if(!tr) return null; const extra = tr.vel ? String(tr.vel).replace('.', ',') + ' km/h' + (tr.incl ? ' · ' + tr.incl + '% incl.' : '') : INT[tr.i == null ? 1 : tr.i];
-  return {date, tr, nome:cardioNome(tr.t), extra};
+  let date = null, tr = null; const ref = String(ini);
+  if(ref.includes('|')){ const [d, i] = ref.split('|'), z = ((S.days[d] || {}).treinos || [])[+i]; if(z && !z.sess && !z.wod){ date = d; tr = z; } }
+  else Object.keys(S.days).some(d => { const z = ((S.days[d] || {}).treinos || []).find(q => String(q.ini) === ref && !q.sess && !q.wod); if(z){ date = d; tr = z; return true; } return false; });
+  if(!tr) return null; if(!tr.cardio){ const kg = weightOn(date).w || 0; tr = {...tr, kcal:kg ? Math.round(trainK(tr, kg)) : 0}; }
+  const selo = tr.cardio || CARDIO.some(c => c[0] === tr.t && c[0] !== 'outro') && !['caminhada', 'corrida', 'bike'].includes(tr.t) ? 'CARDIO CONCLUÍDO' : 'TREINO CONCLUÍDO'; const extra = tr.vel ? String(tr.vel).replace('.', ',') + ' km/h' + (tr.incl ? ' · ' + tr.incl + '% incl.' : '') : INT[tr.i == null ? 1 : tr.i];
+  return {date, tr, nome:cardioNome(tr.t), extra, selo};
 }
 
 /* ---------- CrossFit: WOD do dia, recordes de levantamento e benchmarks ---------- */
@@ -3851,7 +3858,7 @@ async function cartaoCardio(ini){
   const cards = [['relogio', t.min + ' min', 'de ' + D.nome.toLowerCase()], ['emo:🔥', fmt(t.kcal || 0) + ' kcal', 'gastas (estimativa)']];
   cards.push(t.dist ? ['sil:📍', String(t.dist).replace('.', ',') + ' km', 'percorridos'] : ['checkq', INT[t.i == null ? 1 : t.i], 'intensidade']);
   cards.push(['cal', presTxt(), 'de presença']);
-  return cvMontar('CARDIO CONCLUÍDO', dataCap(D.date), [{t:'hero', ic:t.t === 'bike' ? 'sil:🚴' : t.t === 'remo' ? 'sil:🚣' : t.t === 'caminhada' ? 'sil:🚶' : 'sil:🏃', titulo:D.nome, sub:D.extra}, {t:'grade', c:cards}, {t:'frase', frase:t.min >= 45 ? 'Cada minuto conta.' : 'Feito é melhor que perfeito.', nome:nomeCurto()}], false);
+  return cvMontar(D.selo, dataCap(D.date), [{t:'hero', ic:fgEspIc(t.t), titulo:D.nome, sub:D.extra}, {t:'grade', c:cards}, {t:'frase', frase:t.min >= 45 ? 'Cada minuto conta.' : 'Feito é melhor que perfeito.', nome:nomeCurto()}], false);
 }
 async function cartaoWod(ini){
   const D = wodPostDados(ini); if(!D) throw new Error('sem wod'); const w = D.w, t = D.tr;
@@ -5275,7 +5282,7 @@ const MAIS_SEC = {
   desafio:['Desafio da semana', () => desafioCard(today()) || '<section class="card"><p class="sub" style="margin:0">O desafio vale para a semana atual.</p></section>'],
   peso:['Peso e medidas', () => weightCard(S.date) + medidasCard(S.date)],
   ativ:['Treinos e atividades', () => treinoCard(S.date) + trainCard(S.date, dayCalc(S.date))],
-  resumo:['Calorias do dia', () => daySummary(S.date, dayCalc(S.date))],
+  resumo:['Calorias do dia', () => daySummary(S.date, dayCalc(S.date)) + diaPostCard(S.date)],
   bio:['Bioimpedância', () => bioCard() || `<section class="card"><p class="sub" style="margin:0 0 8px">Nenhuma avaliação registrada ainda.</p><button class="primary" data-act="bionova">Registrar bioimpedância</button></section>`],
   conq:['Conquistas', () => conqCard()],
   perfil:['Perfil e notificações', () => perfilView()]
@@ -5497,6 +5504,264 @@ function topoProfs(){
   if(S.treino) linhas.push('🏋️ ' + (S.treino.prof ? 'Personal: ' + S.treino.prof : (S.trnOrig === 'proprio' ? 'Treino próprio' : 'Ficha de treino')));
   const html = linhas.length ? linhas.map(t => `<span class="tp-l">${esc(t)}</span>`).join('') : 'Checklist diário de saúde';
   if(el.innerHTML !== html) el.innerHTML = html;
+}
+
+/* ---------- Figurinhas (adesivo com contorno branco): fim do treino de musculação e de aeróbio ---------- */
+const FG = {lime:'#A6F02A', dark:'#0A0A0A', borda:9, modo:'preto'};
+const FG_TREINO = [['destaque', 'Destaque'], ['halteres', 'Halteres'], ['faixa', 'Faixa'], ['coluna', 'Coluna']];
+const FG_CARDIO = [['contador', 'Contador'], ['faixa', 'Faixa']];
+const FG_DIA = [['lista', 'Lista'], ['grade', 'Quadros'], ['faixa', 'Faixa']];
+const FG_ESP = {esteira:'sil:🏃', corrida:'sil:🏃', caminhada:'sil:🚶', bike:'sil:🚴', eliptico:'sil:🏃', escada:'sil:🪜', remo:'sil:🚣', natacao:'sil:🏊', beach:'emo:🎾', futebol:'emo:⚽', funcional:'sil:🤸', crossfit:'sil:🏋️', musculacao:'sil:🏋️'};
+const fgEspIc = t => FG_ESP[t] || 'relogio';
+function fgCanvas(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const fgF = (s, o) => Object.assign({s, w:800, h:1, i:1}, o || {});
+function fgFit(x, t, s, min, maxW, o){ while(s > min && cw(x, t, fgF(s, o)) > maxW) s -= 2; return s; }
+function fgPainel(x, a, b, w, h, r, o){
+  o = o || {}; x.save(); const fill = o.fill || (FG.modo === 'preto' ? FG.dark : null); if(fill){ x.fillStyle = fill; icRR(x, a, b, w, h, r); x.fill(); }
+  const lw = o.lw || FG.borda, k = lw / 2; x.lineWidth = lw; x.strokeStyle = o.cor || FG.lime; icRR(x, a + k, b + k, w - lw, h - lw, Math.max(4, r - k)); x.stroke(); x.restore();
+}
+/* marca: quadrado com check + Check(branco)Fit(verde) */
+function fgMarca(x, a, y, s, h){
+  const sz = s * 1.12, ib = y + (h - sz) / 2, k = sz / 124;
+  x.save(); x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = FG.lime; x.lineWidth = 13 * k; icRR(x, a + 6 * k, ib + 18 * k, sz - 22 * k, sz - 22 * k, 26 * k); x.stroke();
+  const ck = () => { x.beginPath(); x.moveTo(a + 28 * k, ib + 66 * k); x.lineTo(a + 54 * k, ib + 92 * k); x.lineTo(a + sz - 4 * k, ib + 6 * k); x.stroke(); };
+  x.strokeStyle = FG.dark; x.lineWidth = 32 * k; ck(); x.strokeStyle = FG.lime; x.lineWidth = 17 * k; ck(); x.restore();
+  const tx = a + sz + s * .22, ty = y + h / 2 + s * .36, w1 = ct(x, 'Check', tx, ty, fgF(s)); const w2 = ct(x, 'Fit', tx + w1, ty, fgF(s, {c:FG.lime}));
+  return sz + s * .22 + w1 + w2;
+}
+const fgMarcaW = (x, s) => s * 1.34 + cw(x, 'Check', fgF(s)) + cw(x, 'Fit', fgF(s));
+function fgLogo(x, cx, y, s){
+  const h = s * 1.62, padX = s * .45, w = padX * 2 + fgMarcaW(x, s), a = cx - w / 2;
+  fgPainel(x, a, y, w, h, h * .32); fgMarca(x, a + padX, y, s, h); return h;
+}
+/* selo "✓ TREINO CONCLUÍDO" (inv: fundo verde) */
+function fgSelo(x, cx, y, txt, s, o){
+  o = o || {}; const tw = cw(x, txt, fgF(s)), d = s * 1.05, h = s * 1.8, w = h * .36 + d + s * .32 + tw + h * .42, a = o.a != null ? o.a : cx - w / 2;
+  fgPainel(x, a, y, w, h, h / 2, o.inv ? {fill:FG.lime, cor:FG.lime} : {});
+  if(FG.modo === 'nada') o.inv = false; const ccx = a + h * .36 + d / 2, ccy = y + h / 2; x.save(); x.fillStyle = o.inv ? FG.dark : FG.lime; x.beginPath(); x.arc(ccx, ccy, d / 2, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = o.inv ? FG.lime : FG.dark; x.lineWidth = d * .16; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); x.moveTo(ccx - d * .22, ccy + d * .02); x.lineTo(ccx - d * .06, ccy + d * .18); x.lineTo(ccx + d * .24, ccy - d * .17); x.stroke(); x.restore();
+  ct(x, txt, ccx + d / 2 + s * .32, ccy + s * .36, fgF(s, {c:o.inv ? FG.dark : FG.lime})); return {w, h};
+}
+/* pílula de texto (data, treino C) */
+function fgPilula(x, cx, y, txt, s, o){
+  o = o || {}; const h = s * 1.9, maxW = o.max || 1000; s = fgFit(x, txt, s, s * .7, maxW - h, {w:700, i:0}); const tw = cw(x, txt, fgF(s, {w:700, i:0})), w = tw + h, a = cx - w / 2;
+  fgPainel(x, a, y, w, h, h / 2, {lw:o.lw || 7}); ct(x, txt, cx, y + h / 2 + s * .36, fgF(s, {w:700, i:o.i ? 1 : 0, al:'center', c:o.c || '#fff'})); return h;
+}
+/* ícone num círculo escuro com borda verde (aparece por cima das bordas) */
+function fgIcone(x, ic, cx, cy, r){ if(FG.modo === 'preto'){ x.save(); x.fillStyle = FG.dark; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); x.lineWidth = 7; x.strokeStyle = FG.lime; x.beginPath(); x.arc(cx, cy, r - 3.5, 0, Math.PI * 2); x.stroke(); x.restore(); cvIcone(x, ic, cx, cy, r * 1.18); } else cvIcone(x, ic, cx, cy, r * 1.3); }
+/* halter verde */
+function fgHalter(x, cx, cy, L, vert){
+  x.save(); x.translate(cx, cy); if(vert) x.rotate(Math.PI / 2); const u = L / 10; x.fillStyle = FG.lime; x.strokeStyle = FG.dark; x.lineWidth = Math.max(3, u * .32);
+  const R = (a, b, w, h, r) => { icRR(x, a, b, w, h, r); x.fill(); x.stroke(); };
+  R(-L * .3, -u * .45, L * .6, u * .9, u * .3);
+  [-1, 1].forEach(sg => { const P = (off, w, h) => R(sg > 0 ? off : -off - w, -h / 2, w, h, Math.min(w, h) * .32); P(L * .15, u * 1.4, u * 4.6); P(L * .15 + u * 1.55, u * 1.15, u * 3.2); P(L * .15 + u * 2.85, u * .75, u * 1.3); });
+  x.restore();
+}
+/* contorno branco de recorte + sombra */
+function fgCortar(cv){
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height, d = x.getImageData(0, 0, W, H).data; let t = H, l = W, r = -1, b = -1;
+  for(let y = 0; y < H; y += 2) for(let i = 0; i < W; i += 2) if(d[(y * W + i) * 4 + 3] > 8){ if(y < t) t = y; if(y > b) b = y; if(i < l) l = i; if(i > r) r = i; }
+  if(r < 0) return cv; l = Math.max(0, l - 2); t = Math.max(0, t - 2); const w = Math.min(W, r + 3) - l, h = Math.min(H, b + 3) - t, o = fgCanvas(w, h); o.getContext('2d').drawImage(cv, l, t, w, h, 0, 0, w, h); return o;
+}
+function fgDilata(src, r, cor, m){
+  const T = fgCanvas(src.width, src.height), t = T.getContext('2d'); t.drawImage(src, 0, 0); t.globalCompositeOperation = 'source-in'; t.fillStyle = cor; t.fillRect(0, 0, T.width, T.height);
+  const O = fgCanvas(src.width + 2 * m, src.height + 2 * m), o = O.getContext('2d');
+  for(let k = 0; k < 32; k++){ const an = k / 32 * Math.PI * 2; [1, .55].forEach(f => o.drawImage(T, m + Math.cos(an) * r * f, m + Math.sin(an) * r * f)); } o.drawImage(T, m, m); return O;
+}
+function fgContorno(L){
+  const preto = FG.modo === 'preto', r1 = preto ? 5 : 9, r2 = preto ? 0 : 14, m1 = r1 + 2, m2 = r2 + 36;
+  const D1 = fgDilata(L, r1, FG.dark, m1), D2 = preto ? fgDilata(D1, 0, 'rgba(0,0,0,0)', m2) : fgDilata(D1, r2, '#FFFFFF', m2), F = fgCanvas(D2.width, D2.height), f = F.getContext('2d');
+  f.save(); f.shadowColor = 'rgba(0,0,0,.35)'; f.shadowBlur = 20; f.shadowOffsetY = 6; f.drawImage(D2, 0, 0); f.restore();
+  f.drawImage(D1, m2, m2); f.drawImage(L, m2 + m1, m2 + m1); return F;
+}
+/* título grande que cabe em 1 ou 2 linhas */
+function fgTitulo(x, t, maxW, s1, s2){
+  let s = fgFit(x, t, s1, s2, maxW); if(cw(x, t, fgF(s)) <= maxW) return {L:[t], s};
+  for(s = Math.min(s1, 150); s >= 80; s -= 4){ const L = cvLinhas(x, t, maxW, {s, h:1}); if(L.length <= 2 && L.every(l => cw(x, l, fgF(s)) <= maxW)) return {L, s}; }
+  const L = cvLinhas(x, t, maxW, {s:80, h:1}).slice(0, 2); return {L, s:80};
+}
+const fgTempo = min => min < 60 ? [String(min), 'min'] : [Math.floor(min / 60) + 'h' + String(min % 60).padStart(2, '0'), 'de treino'];
+function fgGrupo(t){ t = String(t || '').toLowerCase(); if(/perna|gl[uú]te|quadr|posterior|panturr|inferior|coxa|leg/.test(t)) return 'sil:🦵'; if(/abd|core/.test(t)) return 'emo:🔥'; if(/full|corpo todo|completo/.test(t)) return 'sil:🏋️'; return 'sil:💪'; }
+
+/* dados */
+function fgDadosTreino(ref){
+  const D = treinoPostDados(ref); if(!D) return null; const pres = presTxt();
+  return {selo:'TREINO CONCLUÍDO', titulo:D.nome, data:dataCap(D.date), rot:D.rot !== D.nome ? D.rot : '', grupo:fgGrupo(D.nome + ' ' + D.rot),
+    st:[['relogio', D.min + ' min', 'de treino'], ['checkq', String(D.series), D.series === 1 ? 'série' : 'séries'], ['sil:🏋️', fmt(Math.round(D.vol)) + ' kg', 'levantados'], D.kcal ? ['emo:🔥', fmt(D.kcal), 'kcal'] : ['emo:🔥', pres, 'de presença']],
+    rod:D.prs.length ? ['emo:🏆', 'Recorde:', D.prs[0][0] + ' – ' + String(D.prs[0][1]).replace('.', ',') + ' kg'] : ['emo:🔥', '', pres + ' de presença']};
+}
+function fgDadosCardio(ref){
+  const D = cardioPostDados(ref); if(!D) return null; const t = D.tr, k = Math.round(+t.kcal || 0);
+  return {selo:D.selo, esporte:D.nome, ic:fgEspIc(t.t), data:dataCap(D.date), extra:t.vel ? D.extra : '', min:+t.min || 0,
+    kcal:k ? fmt(k) : '—', kcalLab:k ? 'kcal gastas' : 'registre seu peso', dist:t.dist ? String(t.dist).replace('.', ',') + ' km' : '', int:INT[t.i == null ? 1 : t.i], pres:presTxt()};
+}
+
+/* ---- musculação: Destaque ---- */
+function fgDestaque(A){
+  const W = 1080, cv = fgCanvas(W, 2400), x = cv.getContext('2d'), a = 60, w = W - 120; let y = 10;
+  y += fgLogo(x, W / 2, y, 106) + 26;
+  y += fgSelo(x, W / 2, y, A.selo, 66).h + 26;
+  const icW = 250, T = fgTitulo(x, A.titulo, w - 90 - icW, 240, 120), lh = T.s * 1.02, hh = Math.max(300, 70 + T.L.length * lh + 90);
+  fgPainel(x, a, y, w, hh, 46, {lw:11});
+  const ty0 = y + (hh - 60 - T.L.length * lh) / 2 + T.s * .78; T.L.forEach((l, i) => ct(x, l, a + 56, ty0 + i * lh, fgF(T.s)));
+  cvIcone(x, A.grupo, a + w - 60 - icW / 2, y + (hh - 40) / 2, 230);
+  const sub = A.data + (A.rot ? '  •  ' + A.rot : ''), ph = fgPilula(x, W / 2, y + hh - 50, sub, 46, {max:w - 20});
+  y += hh - 50 + ph + 30 + 66;
+  const n = A.st.length, gap = 16, cwid = (w - gap * (n - 1)) / n, ch = 210;
+  A.st.forEach((c, i) => { const ca = a + i * (cwid + gap); fgPainel(x, ca, y, cwid, ch, 34, {lw:9}); fgIcone(x, c[0], ca + cwid / 2, y, 58);
+    const vs = fgFit(x, c[1], 72, 40, cwid - 26); ct(x, c[1], ca + cwid / 2, y + 120, fgF(vs, {i:0, al:'center'})); ct(x, c[2], ca + cwid / 2, y + 172, fgF(fgFit(x, c[2], 40, 26, cwid - 20, {w:600, i:0}), {w:600, i:0, al:'center'})); });
+  y += ch + 26;
+  fgRodape(x, W / 2, y, w, A.rod, 50);
+  return fgContorno(fgCortar(cv));
+}
+function fgRodape(x, cx, y, w, R, s){
+  if(!R) return 0; const h = s * 2.2, a = cx - w / 2; fgPainel(x, a, y, w, h, h / 2, {lw:9});
+  const rw = R[1] ? cw(x, R[1], fgF(s)) + s * .3 : 0; const maxT = w - h * 1.6 - rw - 40, ts = fgFit(x, R[2], s * .94, s * .6, maxT, {w:700, i:0}), tw = Math.min(maxT, cw(x, R[2], fgF(ts, {w:700, i:0}))), tot = s * 1.5 + rw + tw, sx = cx - tot / 2;
+  cvIcone(x, R[0], sx + s * .55, y + h / 2, s * 1.35); if(R[1]) ct(x, R[1], sx + s * 1.5, y + h / 2 + s * .36, fgF(s, {c:FG.lime}));
+  ct(x, R[2], sx + s * 1.5 + rw, y + h / 2 + s * .34, fgF(ts, {w:700, i:0, max:maxT})); return h;
+}
+/* ---- musculação: Halteres ---- */
+function fgHalteres(A){
+  const W = 1080, cv = fgCanvas(W, 2400), x = cv.getContext('2d'), a = 50, w = W - 100; let y = 10;
+  y += fgLogo(x, W / 2, y, 124) + 26;
+  const sh = 74 * 1.8, sw = w - 40; fgPainel(x, W / 2 - sw / 2, y, sw, sh, sh / 2); { const s = fgFit(x, A.selo, 74, 50, sw - 260), d = s * 1.05, tw = cw(x, A.selo, fgF(s)), tot = d + s * .32 + tw, ax = W / 2 - tot / 2, ccy = y + sh / 2;
+    x.save(); x.fillStyle = FG.lime; x.beginPath(); x.arc(ax + d / 2, ccy, d / 2, 0, Math.PI * 2); x.fill(); x.strokeStyle = FG.dark; x.lineWidth = d * .16; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); x.moveTo(ax + d * .28, ccy + d * .02); x.lineTo(ax + d * .44, ccy + d * .18); x.lineTo(ax + d * .74, ccy - d * .17); x.stroke(); x.restore();
+    ct(x, A.selo, ax + d + s * .32, ccy + s * .36, fgF(s, {c:FG.lime})); }
+  y += sh + 30;
+  const HL = 190, T = fgTitulo(x, A.titulo, w - 2 * HL - 40, 220, 110), lh = T.s * 1.02, th = Math.max(250, 60 + T.L.length * lh), tw = Math.min(w - 2 * HL + 60, Math.max(...T.L.map(l => cw(x, l, fgF(T.s)))) + 110);
+  fgPainel(x, W / 2 - tw / 2, y, tw, th, 50, {lw:11});
+  const ty0 = y + (th - T.L.length * lh) / 2 + T.s * .74; T.L.forEach((l, i) => ct(x, l, W / 2, ty0 + i * lh, fgF(T.s, {al:'center'})));
+  fgHalter(x, W / 2 - tw / 2 - HL / 2 + 28, y + th / 2 - 10, HL, true); fgHalter(x, W / 2 + tw / 2 + HL / 2 - 28, y + th / 2 - 10, HL, true);
+  const sub = A.data + (A.rot ? '  •  ' + A.rot : ''); y += th - 26; y += fgPilula(x, W / 2, y, sub, 46, {max:w}) + 30;
+  const n = A.st.length, ph = 270; fgPainel(x, a, y, w, ph, 44, {lw:11}); const col = w / n;
+  A.st.forEach((c, i) => { const cx = a + col * i + col / 2; if(i){ x.fillStyle = FG.lime; x.fillRect(a + col * i - 3, y + 40, 6, ph - 80); }
+    cvIcone(x, c[0], cx, y + 72, 92); const vs = fgFit(x, c[1], 66, 36, col - 64, {i:0}); ct(x, c[1], cx, y + 182, fgF(vs, {i:0, al:'center'})); ct(x, c[2], cx, y + 230, fgF(fgFit(x, c[2], 38, 24, col - 60, {w:600, i:0}), {w:600, i:0, al:'center'})); });
+  y += ph + 26; fgRodape(x, W / 2, y, w, A.rod, 50);
+  return fgContorno(fgCortar(cv));
+}
+/* ---- musculação: Faixa (horizontal) ---- */
+function fgFaixa(A){
+  const W = 1900, cv = fgCanvas(W, 800), x = cv.getContext('2d'), a = 20, top = 110, ph = 250; const n = A.st.length;
+  const ls = 92, lw = fgMarcaW(x, ls), la = a + 50, statA = la + lw + 50, w = W - 40;
+  fgPainel(x, a, top, w, ph, ph / 2.4, {lw:12}); fgMarca(x, la, top, ls, ph - 40);
+  const col = (a + w - 40 - statA) / n;
+  x.fillStyle = FG.lime; A.st.forEach((c, i) => { const xs = statA + col * i, cx = xs + col / 2; x.save(); x.translate(xs, top + ph / 2 - 20); x.rotate(.12); x.fillRect(-4, -78, 8, 156); x.restore();
+    fgIcone(x, c[0], cx, top, 64); const vs = fgFit(x, c[1], 76, 40, col - 70, {i:0}); ct(x, c[1], cx, top + 128, fgF(vs, {i:0, al:'center'})); ct(x, c[2], cx, top + 180, fgF(fgFit(x, c[2], 42, 26, col - 30, {w:600, i:0}), {w:600, i:0, al:'center', c:'#D9D9D9'})); });
+  const by = top + ph - 40, sel = fgSelo(x, 0, by, A.selo, 52, {inv:true, a:a + 170});
+  const ra = a + 170 + sel.w - 30, rw = a + w - 70 - ra; if(A.rod){ const h = sel.h, R = A.rod; fgPainel(x, ra, by, rw, h, h / 2, {lw:9}); const s = 46, rlw = R[1] ? cw(x, R[1], fgF(s)) + 14 : 0, sx = ra + 70;
+    cvIcone(x, R[0], sx + 22, by + h / 2, 60); if(R[1]) ct(x, R[1], sx + 70, by + h / 2 + 17, fgF(s, {c:FG.lime})); ct(x, R[2], sx + 70 + rlw, by + h / 2 + 16, fgF(fgFit(x, R[2], 44, 28, rw - 170 - rlw, {w:700, i:0}), {w:700, i:0, max:rw - 170 - rlw})); }
+  fgSelo(x, 0, by, A.selo, 52, {inv:true, a:a + 170});
+  return fgContorno(fgCortar(cv));
+}
+/* ---- musculação: Coluna (estreita) ---- */
+function fgColuna(A){
+  const W = 860, cv = fgCanvas(W, 2800), x = cv.getContext('2d'), a = 70, w = W - 140; let y = 10;
+  y += fgLogo(x, W / 2, y, 96) + 22;
+  y += fgSelo(x, W / 2, y, A.selo, fgFit(x, A.selo, 58, 40, w - 140)).h + 100;
+  const T = fgTitulo(x, A.titulo, w - 100, 160, 90), lh = T.s * 1.02, th = 90 + T.L.length * lh + 70;
+  fgPainel(x, a + 30, y, w - 60, th, 70, {lw:11}); fgHalter(x, W / 2, y - 6, 240, false);
+  const ty0 = y + 70 + T.s * .78; T.L.forEach((l, i) => ct(x, l, W / 2, ty0 + i * lh, fgF(T.s, {al:'center'})));
+  y += th - 50; y += fgPilula(x, W / 2, y, A.data, 42, {max:W - 40}) - 8;
+  if(A.rot){ y += 6; y += fgPilula(x, W / 2, y, A.rot, 40, {max:w - 120, i:1}); }
+  y += 24; const rh = 168;
+  A.st.forEach(c => { fgPainel(x, a, y, w, rh, 38, {lw:9}); cvIcone(x, c[0], a + 105, y + rh / 2, 104); const vs = fgFit(x, c[1], 86, 44, w - 230); ct(x, c[1], a + 200, y + 92, fgF(vs)); ct(x, c[2], a + 200, y + 138, fgF(fgFit(x, c[2], 40, 26, w - 230, {w:700}), {w:700})); y += rh + 16; });
+  y += 34; if(A.rod){ const R = A.rod, h = R[1] ? 190 : 120; fgPainel(x, a - 10, y, w + 20, h, 60, {lw:10});
+    if(R[1]){ const s = 60, tw = cw(x, R[1], fgF(s)), tot = 80 + tw, sx = W / 2 - tot / 2; fgIcone(x, R[0], sx + 30, y + 4, 46); ct(x, R[1], sx + 80, y + 70, fgF(s, {c:FG.lime})); ct(x, R[2], W / 2, y + 150, fgF(fgFit(x, R[2], 50, 28, w - 30, {w:700, i:0}), {w:700, i:0, al:'center', max:w - 20})); }
+    else { cvIcone(x, R[0], a + 50, y + h / 2, 60); ct(x, R[2], W / 2 + 30, y + h / 2 + 16, fgF(fgFit(x, R[2], 46, 28, w - 120, {w:700, i:0}), {w:700, i:0, al:'center'})); } }
+  return fgContorno(fgCortar(cv));
+}
+/* ---- aeróbio: Contador ---- */
+function fgContador(C){
+  const W = 1080, cv = fgCanvas(W, 2600), x = cv.getContext('2d'), a = 70, w = W - 140; let y = 10;
+  y += fgLogo(x, W / 2, y, 106) + 26;
+  y += fgSelo(x, W / 2, y, C.selo, 64).h + 20;
+  const R = 340, cx = W / 2, cy = y + R;
+  x.save(); if(FG.modo === 'preto'){ x.fillStyle = FG.dark; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill(); } x.lineWidth = 12; x.strokeStyle = FG.lime; x.beginPath(); x.arc(cx, cy, R - 6, 0, Math.PI * 2); x.stroke();
+  for(let i = 0; i < 12; i++){ const an = i / 12 * Math.PI * 2 - Math.PI / 2, big = i % 3 === 0, r1 = R - 36, r2 = r1 - (big ? 40 : 24); x.strokeStyle = big ? FG.lime : '#FFFFFF'; x.lineWidth = big ? 12 : 8; x.lineCap = 'round'; x.beginPath(); x.moveTo(cx + Math.cos(an) * r1, cy + Math.sin(an) * r1); x.lineTo(cx + Math.cos(an) * r2, cy + Math.sin(an) * r2); x.stroke(); }
+  const fr = Math.min(1, C.min / 60) || .02, g = limeGrad(x, cx - R, cy + R, cx + R, cy - R); x.strokeStyle = g; x.lineWidth = 22; x.lineCap = 'round'; x.beginPath(); x.arc(cx, cy, R - 100, -Math.PI / 2, -Math.PI / 2 + fr * Math.PI * 2); x.stroke();
+  x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 22; x.beginPath(); x.arc(cx, cy, R - 100, -Math.PI / 2 + fr * Math.PI * 2, Math.PI * 1.5); x.stroke(); x.restore();
+  cvIcone(x, C.ic, cx, cy - 130, 120);
+  const [tv, tu] = fgTempo(C.min), ts = fgFit(x, tv, 210, 120, 2 * (R - 140)); ct(x, tv, cx, cy + 80, fgF(ts, {al:'center'})); ct(x, tu, cx, cy + 150, fgF(52, {c:FG.lime, al:'center'}));
+  y = cy + R + 24;
+  const es = fgFit(x, C.esporte, 74, 44, w - 160), eh = es * 1.8, ew = cw(x, C.esporte, fgF(es)) + eh + 30; fgPainel(x, cx - ew / 2, y, ew, eh, eh / 2, {lw:10}); ct(x, C.esporte, cx, y + eh / 2 + es * .36, fgF(es, {al:'center'}));
+  y += eh - 6; y += fgPilula(x, cx, y, C.data + (C.extra ? '  •  ' + C.extra : ''), 40, {max:w}) + 70;
+  const cards = [['emo:🔥', C.kcal, C.kcalLab], C.dist ? ['sil:📍', C.dist, 'percorridos'] : ['checkq', C.int, 'intensidade']], gap = 20, cwid = (w - gap) / 2, ch = 200;
+  cards.forEach((c, i) => { const ca = a + i * (cwid + gap); fgPainel(x, ca, y, cwid, ch, 36, {lw:9}); fgIcone(x, c[0], ca + cwid / 2, y, 60);
+    const vs = fgFit(x, c[1], 84, 44, cwid - 40, {i:0}); ct(x, c[1], ca + cwid / 2, y + 122, fgF(vs, {i:0, al:'center'})); ct(x, c[2], ca + cwid / 2, y + 172, fgF(fgFit(x, c[2], 40, 26, cwid - 30, {w:600, i:0}), {w:600, i:0, al:'center'})); });
+  return fgContorno(fgCortar(cv));
+}
+/* ---- aeróbio: Faixa ---- */
+function fgFaixaCardio(C){
+  const W = 1900, cv = fgCanvas(W, 800), x = cv.getContext('2d'), a = 20, top = 110, ph = 250, w = W - 40;
+  const ls = 84, lw = fgMarcaW(x, ls), la = a + 50; fgPainel(x, a, top, w, ph, ph / 2.4, {lw:12}); fgMarca(x, la, top, ls, ph - 40);
+  const [tv, tu] = fgTempo(C.min), st = [[C.ic, C.esporte, C.extra || C.int], ['relogio', tv + (tu === 'min' ? ' min' : ''), 'de treino'], ['emo:🔥', C.kcal, C.kcal === '—' ? 'kcal' : 'kcal gastas']].concat(C.dist ? [['sil:📍', C.dist, 'distância']] : []);
+  const statA = la + lw + 50, col = (a + w - 40 - statA) / st.length;
+  st.forEach((c, i) => { const xs = statA + col * i, cx = xs + col / 2; x.save(); x.fillStyle = FG.lime; x.translate(xs, top + ph / 2 - 20); x.rotate(.12); x.fillRect(-4, -78, 8, 156); x.restore();
+    fgIcone(x, c[0], cx, top, 64); const vs = fgFit(x, c[1], i ? 76 : 60, 36, col - 70, {i:0}); ct(x, c[1], cx, top + 128, fgF(vs, {i:0, al:'center'})); ct(x, c[2], cx, top + 180, fgF(fgFit(x, c[2], 40, 24, col - 30, {w:600, i:0}), {w:600, i:0, al:'center', c:'#D9D9D9'})); });
+  const by = top + ph - 40, sel = fgSelo(x, 0, by, C.selo, 52, {inv:true, a:a + 170});
+  const ra = a + 170 + sel.w - 30, rw = Math.min(a + w - 70 - ra, cw(x, C.data, fgF(42, {w:700, i:0})) + 140), h = sel.h;
+  fgPainel(x, ra, by, rw, h, h / 2, {lw:9}); ct(x, C.data, ra + 80, by + h / 2 + 15, fgF(42, {w:700, i:0, max:rw - 110}));
+  fgSelo(x, 0, by, C.selo, 52, {inv:true, a:a + 170});
+  return fgContorno(fgCortar(cv));
+}
+
+/* ---- resumo do dia ---- */
+function fgDadosDia(date){
+  const c = dayCalc(date), n = PLAN.length, L = v => (Math.round(v / 100) / 10).toLocaleString('pt-BR'), musc = c.tr.list.some(t => t.sess || t.t === 'musculacao');
+  const it = [{ic:'emo:🍴', lab:'Calorias consumidas', curto:'Calorias consumidas', v:fmt(Math.round(c.kcal)) + ' kcal', sub:'consumidas'},
+    {ic:'emo:💧', lab:'Água', curto:'Água', v:L(c.water) + ' L', sub:'de água'},
+    {ic:'sil:🏃', lab:musc ? 'Calorias gastas nos treinos' : 'Calorias perdidas no cardio', curto:musc ? 'Treinos' : 'Cardio', v:fmt(Math.round(c.tr.kcal)) + ' kcal', sub:musc ? 'nos treinos' : 'no cardio'}];
+  if(c.base){ const d = Math.round(c.saldo); it.push(d <= 0 ? {ic:'emo:🔥', lab:'Déficit calórico', curto:'Déficit', v:'-' + fmt(-d) + ' kcal', dest:1} : {ic:'emo:🔥', lab:'Superávit calórico', curto:'Superávit', v:'+' + fmt(d) + ' kcal', dest:1}); }
+  else it.push({ic:'checkq', lab:'Refeições no plano', curto:'No plano', v:c.ok + '/' + n, dest:1});
+  return {it, data:dataCap(date)};
+}
+function fgChk(x, a, b, sz){
+  if(FG.modo === 'preto'){ x.fillStyle = FG.dark; icRR(x, a - sz * .06, b - sz * .06, sz * 1.12, sz * 1.12, sz * .26); x.fill(); }
+  const k = sz / 124; x.save(); x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = FG.lime; x.lineWidth = 13 * k; icRR(x, a + 6 * k, b + 18 * k, sz - 22 * k, sz - 22 * k, 26 * k); x.stroke();
+  const ck = () => { x.beginPath(); x.moveTo(a + 28 * k, b + 66 * k); x.lineTo(a + 54 * k, b + 92 * k); x.lineTo(a + sz - 4 * k, b + 6 * k); x.stroke(); };
+  x.strokeStyle = FG.dark; x.lineWidth = 32 * k; ck(); x.strokeStyle = FG.lime; x.lineWidth = 17 * k; ck(); x.restore();
+}
+function fgResumoTxt(x, a, y, s){ const w1 = ct(x, 'RESUMO DO ', a, y, fgF(s)); return w1 + ct(x, 'DIA', a + w1, y, fgF(s, {c:FG.lime})); }
+const fgResumoW = (x, s) => cw(x, 'RESUMO DO ', fgF(s)) + cw(x, 'DIA', fgF(s));
+function fgValPilula(x, a, cy, txt, s, maxW){ s = fgFit(x, txt, s, s * .55, maxW - s * .9, {i:1}); const h = s * 1.3, w = Math.min(maxW, cw(x, txt, fgF(s)) + s * .9); x.save(); x.fillStyle = FG.lime; icRR(x, a, cy - h / 2, w, h, h * .32); x.fill(); x.restore(); ct(x, txt, a + w / 2, cy + s * .36, fgF(s, {c:FG.dark, al:'center'})); return w; }
+function fgDiaLista(D){
+  const W = 1020, cv = fgCanvas(W, 2400), x = cv.getContext('2d'), a = 40, w = W - 80; let y = 160;
+  const ph = 190; fgPainel(x, a, y, w, ph, ph / 2, {lw:12}); const s = fgFit(x, 'RESUMO DO DIA', 120, 70, w - 120); fgResumoTxt(x, W / 2 - fgResumoW(x, s) / 2, y + ph / 2 + s * .38, s);
+  fgChk(x, W / 2 - 100, y - 150, 200); y += ph + 30;
+  const rh = 240; D.it.forEach(t => { fgPainel(x, a + 10, y, w - 20, rh, 56, {lw:11}); cvIcone(x, t.ic, a + 160, y + rh / 2, 150); x.fillStyle = FG.lime; x.fillRect(a + 290, y + 40, 8, rh - 80);
+    const tx = a + 330, mw = a + w - 40 - tx; ct(x, t.curto, tx, y + 92, fgF(fgFit(x, t.curto, 56, 34, mw, {i:0}), {i:0}));
+    if(t.dest) fgValPilula(x, tx - 10, y + 165, t.v, 100, mw + 10); else ct(x, t.v, tx, y + 200, fgF(fgFit(x, t.v, 116, 60, mw, {i:0}), {i:0, c:FG.lime}));
+    y += rh + 24; });
+  return fgContorno(fgCortar(cv));
+}
+function fgDiaGrade(D){
+  const W = 1760, cv = fgCanvas(W, 1200), x = cv.getContext('2d'); let y = 20;
+  const s = 104, hw = fgResumoW(x, s) + 260, ph = 180, ha = W / 2 - hw / 2 + 20; fgPainel(x, ha, y, hw, ph, ph / 2, {lw:12}); fgChk(x, ha + 50, y + 18, 140); fgResumoTxt(x, ha + 210, y + ph / 2 + s * .38, s);
+  y += ph + 24; const gap = 24, cwid = (W - 80 - gap) / 2, ch = 290;
+  D.it.forEach((t, i) => { const col = i % 2, row = Math.floor(i / 2), ca = 40 + col * (cwid + gap), cb = y + row * (ch + gap);
+    fgPainel(x, ca, cb, cwid, ch, 54, {lw:11}); cvIcone(x, t.ic, ca + 120, cb + ch / 2, 140); x.fillStyle = '#FFFFFF'; x.fillRect(ca + 222, cb + 40, 5, ch - 80);
+    const tx = ca + 258, mw = ca + cwid - 40 - tx; let ls = 50, Ls = cvLinhas(x, t.lab, mw, {s:ls, w:800}); while(Ls.length > 2 && ls > 34){ ls -= 4; Ls = cvLinhas(x, t.lab, mw, {s:ls, w:800}); }
+    const ly = Ls.length > 1 ? cb + 76 : cb + 96; Ls.slice(0, 2).forEach((l, k) => ct(x, l, tx, ly + k * ls * 1.08, fgF(ls)));
+    fgValPilula(x, tx, cb + ch - 78, t.v, 92, mw); });
+  return fgContorno(fgCortar(cv));
+}
+function fgDiaFaixa(D){
+  const W = 2200, cv = fgCanvas(W, 800), x = cv.getContext('2d'), s = 92, hw = fgResumoW(x, s) + 240, ph = 160, ha = W / 2 - hw / 2, top = 150;
+  const a = 20, w = W - 40, sh = 270, sy = top + ph - 30; fgPainel(x, a, sy, w, sh, sh / 2.3, {lw:12});
+  fgPainel(x, ha, top, hw, ph, ph / 2, {lw:12}); fgChk(x, ha + 46, top + 22, 116); fgResumoTxt(x, ha + 190, top + ph / 2 + s * .38, s);
+  const col = (w - 80) / D.it.length;
+  D.it.forEach((t, i) => { const xs = a + 40 + col * i, cy = sy + sh / 2 + 6; if(i){ x.save(); x.fillStyle = FG.lime; x.translate(xs, cy); x.rotate(.08); x.fillRect(-4, -96, 8, 192); x.restore(); }
+    cvIcone(x, t.ic, xs + 90, cy, 150); const tx = xs + 180, mw = col - 200;
+    if(t.dest){ ct(x, t.curto, tx + 12, cy - 30, fgF(fgFit(x, t.curto, 66, 36, mw))); fgValPilula(x, tx, cy + 48, t.v, 64, mw); }
+    else { ct(x, t.v, tx, cy - 22, fgF(fgFit(x, t.v, 74, 40, mw, {i:0}), {i:0})); fgValPilula(x, tx + 8, cy + 50, t.sub, 50, mw - 8); } });
+  return fgContorno(fgCortar(cv));
+}
+async function figuraPng(kind, ref, estilo){
+  await postFonts();
+  if(kind === 'dia'){ const D = fgDadosDia(ref); return estilo === 'grade' ? fgDiaGrade(D) : estilo === 'faixa' ? fgDiaFaixa(D) : fgDiaLista(D); }
+  if(kind === 'cardio'){ const C = fgDadosCardio(ref); if(!C) throw new Error('sem dados'); return estilo === 'faixa' ? fgFaixaCardio(C) : fgContador(C); }
+  const A = fgDadosTreino(ref); if(!A) throw new Error('sem dados');
+  return estilo === 'halteres' ? fgHalteres(A) : estilo === 'faixa' ? fgFaixa(A) : estilo === 'coluna' ? fgColuna(A) : fgDestaque(A);
 }
 
 /* ---------- Treino de musculação: ficha, modo treinar, descanso, recordes ---------- */
@@ -5927,7 +6192,7 @@ function trainCard(date,c){
   const opts=Object.entries(ACTS).map(([k,a])=>`<option value="${k}"${k===tf.t?' selected':''}>${a.n}</option>`).join('');
   return `<section class="card train" aria-label="Treinos">
    <div class="thead"><div><h2>Treinos e cardio</h2><div class="sub">${tr.list.length?`${tr.list.length} atividade(s) · ${fmt(tr.min)} min`:'Nenhum treino registrado neste dia.'}</div></div><div class="fbig num">−${fmt(tr.kcal)}<span> kcal</span></div></div>
-   ${tr.list.length?`<div class="tlist">${tr.list.map((t,i)=>`<div class="trow"><b>${t.sess?'Musculação · '+esc(S.treino?lbl(t.f||''):'treino '+(t.f||'')):(ACTS[t.t]||ACTS.outro).n}<small>${fmt(t.min)} min · ${t.wod?esc(wodFmtN(t.wod.fmt)+(t.wod.bench?' '+t.wod.bench:'')+' · '+wodRes(t.wod)+' · '+wodCat(t.wod)):t.cardio&&t.vel?String(t.vel).replace('.',',')+' km/h'+(t.incl?' · '+t.incl+'%':'')+(t.dist?' · '+String(t.dist).replace('.',',')+' km':''):INT[t.i==null?1:t.i]}</small></b><span class="k num">−${fmt(t.kcal)} kcal</span>${t.cardio||t.wod?`<button class="x" data-act="${t.wod?'posttreinox':'posttreinox'}" data-k="${t.wod?'wod':'cardio'}" data-ini="${t.ini}" aria-label="Postar">📸</button>`:''}<button class="x" id="rt-${i}" data-act="rmtrain" data-i="${i}" aria-label="Remover treino">✕</button></div>`).join('')}</div>`:''}
+   ${tr.list.length?`<div class="tlist">${tr.list.map((t,i)=>`<div class="trow"><b>${t.sess?'Musculação · '+esc(S.treino?lbl(t.f||''):'treino '+(t.f||'')):(ACTS[t.t]||ACTS.outro).n}<small>${fmt(t.min)} min · ${t.wod?esc(wodFmtN(t.wod.fmt)+(t.wod.bench?' '+t.wod.bench:'')+' · '+wodRes(t.wod)+' · '+wodCat(t.wod)):t.cardio&&t.vel?String(t.vel).replace('.',',')+' km/h'+(t.incl?' · '+t.incl+'%':'')+(t.dist?' · '+String(t.dist).replace('.',',')+' km':''):INT[t.i==null?1:t.i]}</small></b><span class="k num">−${fmt(t.kcal)} kcal</span>${!t.sess?`<button class="x" data-act="posttreinox" data-k="${t.wod?'wod':'cardio'}" data-ini="${t.ini||(date+'|'+i)}" aria-label="Postar">📸</button>`:''}<button class="x" id="rt-${i}" data-act="rmtrain" data-i="${i}" aria-label="Remover treino">✕</button></div>`).join('')}</div>`:''}
    ${tr.kg?'':'<div class="banner">Registre seu peso no cartão Peso para calcular o gasto dos treinos.</div>'}
    <div class="tquick"><button class="chip" id="tq-cardio" data-act="copen">▶ Cronômetro de cardio</button><button class="chip" id="tq-wod" data-act="wopen">🔥 WOD de CrossFit</button>${S.treino?'':'<button class="chip" id="tq-musc" data-act="tquick" data-t="musculacao">+ Musculação 1h</button>'}<button class="chip" id="tq-beach" data-act="tquick" data-t="beach">+ Beach tennis 1h</button><button class="chip" id="tq-walk" data-act="tquick" data-t="caminhada">+ Caminhada 1h (6 km/h)</button></div>
    <form class="tform"><select id="tt" aria-label="Atividade">${opts}</select><input id="tm" inputmode="numeric" value="${tf.min||''}" placeholder="min" aria-label="Duração em minutos"><select id="ti" aria-label="Intensidade">${INT.map((n,i)=>`<option value="${i}"${i===tf.i?' selected':''}>${n}</option>`).join('')}</select>
@@ -6204,7 +6469,7 @@ document.addEventListener('click',e=>{
   if(/^ler/.test(a) && lerAct(a,b)) return;
   if(/^grp/.test(a) && grpAct(a,b)) return;
   if(a==='posttreinox'){ postAbrir(b.dataset.k, String(b.dataset.ini)); return; }
-  if(/^post(dia|treino|close|m|share|modo|copy|pos)$/.test(a)){ postAct(a,b); return; }
+  if(/^post(dia|treino|close|m|share|modo|copy|pos|fig)$/.test(a)){ postAct(a,b); return; }
   if(/^mto(g|das)$/.test(a) && mealAct(a,b)) return;
   if(/^(cabre|ctroca|cextra)$/.test(a) && compactoAct(a,b)) return;
   if(/^(inimodo|initog|iniup|inidn|maisx|maisback)$/.test(a) && casaAct(a,b)) return;
@@ -6248,7 +6513,7 @@ document.addEventListener('click',e=>{
   else if(a==='rmextra'){const r=rec(date,mid,true);r.extras.splice(+b.dataset.i,1);save(date);render();}
   else if(a==='water'){addWater(date,+b.dataset.ml);}
   else if(a==='wundo'){const d=S.days[date]; if(d&&Array.isArray(d.agua)&&d.agua.length){d.agua.pop();save(date);render();}}
-  else if(a==='tquick'){const d=S.days[date]||(S.days[date]={meals:{}}); d.treinos=Array.isArray(d.treinos)?d.treinos:[]; d.treinos.push({t:b.dataset.t,min:60,i:1}); save(date); render();}
+  else if(a==='tquick'){const d=S.days[date]||(S.days[date]={meals:{}}); d.treinos=Array.isArray(d.treinos)?d.treinos:[]; d.treinos.push({t:b.dataset.t,min:60,i:1,ini:Date.now()}); save(date); render();}
   else if(a==='rmtrain'){const d=S.days[date]; if(d&&Array.isArray(d.treinos)){d.treinos.splice(+b.dataset.i,1); save(date); render();}}
 });
 document.addEventListener('input',e=>{
@@ -6261,7 +6526,7 @@ function saveProf(){ if(S.db){ S.db.doc('config/perfil').set({...S.prof}).catch(
 document.addEventListener('submit',e=>{
   const f=e.target; if(!f.matches('form.tform, form.pform, form#profform')) return; e.preventDefault();
   const date=S.date, num=id=>{const v=parseFloat((document.getElementById(id).value||'').replace(',','.')); return v>0?v:null;};
-  if(f.matches('.tform')){ if(!(S.tf.min>0)){document.getElementById('tm').focus();return;} const d=S.days[date]||(S.days[date]={meals:{}}); d.treinos=Array.isArray(d.treinos)?d.treinos:[]; d.treinos.push({t:S.tf.t,min:Math.round(S.tf.min),i:S.tf.i}); save(date); render(); }
+  if(f.matches('.tform')){ if(!(S.tf.min>0)){document.getElementById('tm').focus();return;} const d=S.days[date]||(S.days[date]={meals:{}}); d.treinos=Array.isArray(d.treinos)?d.treinos:[]; d.treinos.push({t:S.tf.t,min:Math.round(S.tf.min),i:S.tf.i,ini:Date.now()}); save(date); render(); }
   else if(f.matches('.pform')){ const v=num('pw'); if(!v||v<30||v>300){document.getElementById('pw').focus();return;} const d=S.days[date]||(S.days[date]={meals:{}}); d.peso=Math.round(v*10)/10; save(date); render(); }
   else { S.prof={...S.prof, tmb:num('pf-tmb'), meta:num('pf-meta'), altura:num('pf-alt'), idade:num('pf-idade'), sexo:(document.getElementById('pf-sexo')||{}).value||'', agua:num('pf-agua'), pini:num('pf-pini'), dini:(document.getElementById('pf-dini')||{}).value||''}; saveProf(); S.profOpen=false; render(); }
 });

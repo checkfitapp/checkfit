@@ -1,6 +1,6 @@
 # CheckFit — contexto do projeto (para continuar em outra conversa)
 
-Atualizado em 21/11/2026, versão 56 do app.
+Atualizado em 24/11/2026, versão 57 do app.
 
 ## Quem sou e como trabalho
 - **Quem:** Alexandre (pt-BR). Uso iPhone e não sou programador. Respostas em português, diretas, com passo a passo quando eu precisar mexer em algo.
@@ -59,6 +59,10 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
 - **Lista de compras:** `S.mode = 'compras'` (`comprasView`, `lcGerar`, `lcFmt`, `comprasAct`). Multiplica os itens do plano pelos dias, usa a opção e a escolha mais marcadas nas últimas 3 semanas (`lcPreferidos`), agrupa em Hortifrúti/Carnes e ovos/Laticínios/Mercearia por palavras-chave (`LC_KW`). Estado só no aparelho: localStorage `cf-compras-{uid}` (dias, edit, tenho, ok, opc). Entradas: ＋, Planos e Mais.
 - **Aviso de retorno:** `retornoCard` aparece no Início quando a data do plano (`PLANINFO.data`, dd/mm/aaaa) completa `S.prof.retDias` (30/45/60, escolhido no Perfil por `retornoPerfil`). "Lembrar em 7 dias" grava `S.prof.retorno = {plano, ate}`; "Gerar relatório" abre o relatório personalizado desde a data do plano.
 - **Textos do topo:** data em `dataTopo()` ("Quinta, 19 de nov."); o botão Hoje some quando já está no período atual.
+- **Figurinhas (v57):** modo "Figurinha" na janela de compartilhar (`postSheet`, `S.post.modo = 'figura'`, modelo em `S.post.fig`, ação `postfig`) para os tipos treino, cardio e dia. Código em `figuraPng(kind, ref, estilo)` com os helpers `fg*` (antes do comentário da musculação). Modelos: `FG_TREINO` (destaque, halteres, faixa, coluna), `FG_CARDIO` (contador, faixa) e `FG_DIA` (lista, grade/"Quadros", faixa). Visual escolhido por mim: caixas pretas com borda verde, iguais às minhas artes, e transparente em volta (`FG.modo = 'preto'`; o contorno é um anel escuro fino em `fgContorno`). Não colocar o branco em volta nem voltar para "só letras".
+  - Treino: `fgDadosTreino` (de `treinoPostDados`). Cardio/atividade: `fgDadosCardio` (de `cardioPostDados`, que agora aceita o `ini` ou `data|índice` para registros antigos sem id e calcula as kcal de atividades manuais pelo `trainK`; selo "CARDIO CONCLUÍDO" para aparelhos e "TREINO CONCLUÍDO" para esportes). Resumo do dia: `fgDadosDia` (consumidas, água, kcal de todos os treinos do dia, déficit = `c.saldo`, que precisa da taxa basal do Perfil; sem ela mostra refeições no plano).
+  - O 📸 aparece em todas as atividades em Treinos e atividades (exceto musculação com ficha, que já abre no fim do treino). Atividades novas registradas à mão ganham `ini`.
+  - "Postar meu dia" também aparece em Mais › Calorias do dia.
 - **Refeições:** ficam encolhidas (`mealCard`, `mealHead`, `mealDaVez`, `mealAct`). A refeição da hora abre sozinha. "Marcar tudo" ou "Pulei" fecham e passam para a próxima.
 
 ## Dados no Firestore
@@ -86,7 +90,7 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
 - **Como o app chama o servidor:** por `fetch` em `https://us-central1-dieta-alexandre.cloudfunctions.net/<nome>` com o token do usuário. Não usar o SDK de functions, porque ele quebra o service worker das notificações.
 
 ## O que já está pronto
-Login e assinatura manual, plano da nutricionista (por texto ou leitura com IA), modo "monte o seu", modo hábitos, água, peso, medidas, bioimpedância, musculação com ficha (semanas e periodização, descanso, recordes, cartão de story), cardio, suplementos e remédios com estoque, notificações push, Minha Jornada com cartas para o futuro, grupos e desafios fase 1 (prontos, personalizado e perda de peso com ranking em %), refeições encolhidas, cópia de segurança do dia, relatório semanal, mensal e personalizado em imagem e PDF, Início personalizável (Simples, Completo ou Do meu jeito) com aba Mais, lista de compras e aviso de retorno à nutricionista.
+Login e assinatura manual, plano da nutricionista (por texto ou leitura com IA), modo "monte o seu", modo hábitos, água, peso, medidas, bioimpedância, musculação com ficha (semanas e periodização, descanso, recordes, cartão de story), cardio, suplementos e remédios com estoque, notificações push, Minha Jornada com cartas para o futuro, grupos e desafios fase 1 (prontos, personalizado e perda de peso com ranking em %), refeições encolhidas, cópia de segurança do dia, relatório semanal, mensal e personalizado em imagem e PDF, Início personalizável (Simples, Completo ou Do meu jeito) com aba Mais, lista de compras, aviso de retorno à nutricionista e figurinhas sem fundo para os Stories (treino, aeróbio e resumo do dia).
 
 ## Pendências e próximos passos
 1. Apagar os 2 grupos órfãos "Desafio teste" (Editar › Encerrar).
