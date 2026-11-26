@@ -1,6 +1,6 @@
 # CheckFit — contexto do projeto (para continuar em outra conversa)
 
-Atualizado em 24/11/2026, versão 57 do app.
+Atualizado em 26/11/2026, versão 58 do app.
 
 ## Quem sou e como trabalho
 - **Quem:** Alexandre (pt-BR). Uso iPhone e não sou programador. Respostas em português, diretas, com passo a passo quando eu precisar mexer em algo.
@@ -59,6 +59,7 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
 - **Lista de compras:** `S.mode = 'compras'` (`comprasView`, `lcGerar`, `lcFmt`, `comprasAct`). Multiplica os itens do plano pelos dias, usa a opção e a escolha mais marcadas nas últimas 3 semanas (`lcPreferidos`), agrupa em Hortifrúti/Carnes e ovos/Laticínios/Mercearia por palavras-chave (`LC_KW`). Estado só no aparelho: localStorage `cf-compras-{uid}` (dias, edit, tenho, ok, opc). Entradas: ＋, Planos e Mais.
 - **Aviso de retorno:** `retornoCard` aparece no Início quando a data do plano (`PLANINFO.data`, dd/mm/aaaa) completa `S.prof.retDias` (30/45/60, escolhido no Perfil por `retornoPerfil`). "Lembrar em 7 dias" grava `S.prof.retorno = {plano, ate}`; "Gerar relatório" abre o relatório personalizado desde a data do plano.
 - **Textos do topo:** data em `dataTopo()` ("Quinta, 19 de nov."); o botão Hoje some quando já está no período atual.
+- **Estimar com IA (v58):** janela `iaeSheet()` (estado `S.iae`, ações `iae*`, módulo antes do comentário de Engajamento). Abre pelo "+ Comi algo fora do plano" das refeições (botão `ia-{mid}`), pelo ＋ e por Mais › Alimentação. Fluxo: descrição + peso + foto (reduzida para 1100 px por `lerReduz(file, max)`) → `pushFn('estimarRefeicao')` → itens editáveis (kcal) → salva cada item como extra da refeição com `ia:1` (aparece com ✨). A tela sempre diz que é estimativa.
 - **Figurinhas (v57):** modo "Figurinha" na janela de compartilhar (`postSheet`, `S.post.modo = 'figura'`, modelo em `S.post.fig`, ação `postfig`) para os tipos treino, cardio e dia. Código em `figuraPng(kind, ref, estilo)` com os helpers `fg*` (antes do comentário da musculação). Modelos: `FG_TREINO` (destaque, halteres, faixa, coluna), `FG_CARDIO` (contador, faixa) e `FG_DIA` (lista, grade/"Quadros", faixa). Visual escolhido por mim: caixas pretas com borda verde, iguais às minhas artes, e transparente em volta (`FG.modo = 'preto'`; o contorno é um anel escuro fino em `fgContorno`). Não colocar o branco em volta nem voltar para "só letras".
   - Treino: `fgDadosTreino` (de `treinoPostDados`). Cardio/atividade: `fgDadosCardio` (de `cardioPostDados`, que agora aceita o `ini` ou `data|índice` para registros antigos sem id e calcula as kcal de atividades manuais pelo `trainK`; selo "CARDIO CONCLUÍDO" para aparelhos e "TREINO CONCLUÍDO" para esportes). Resumo do dia: `fgDadosDia` (consumidas, água, kcal de todos os treinos do dia, déficit = `c.saldo`, que precisa da taxa basal do Perfil; sem ela mostra refeições no plano).
   - O 📸 aparece em todas as atividades em Treinos e atividades (exceto musculação com ficha, que já abre no fim do treino). Atividades novas registradas à mão ganham `ini`.
@@ -73,7 +74,7 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
   - `diario/*`.
 - `assinaturas/{uid}`: `ativoAte` ou `vitalicio`. A regra `ativo(uid)` libera a gravação.
 - `lembretes/{uid}`: tokens de notificação, preferências, refeições, remédios, fuso, descanso.
-- `iaUso/{uid}`: limite de 5 leituras por dia.
+- `iaUso/{uid}`: limite de 5 leituras de plano por dia (`dia`, `n`) e de 15 estimativas de refeição por dia (`estDia`, `estN`, tokens em `estTokE`/`estTokS`).
 - Grupos:
   - `codigos/{CODIGO}` {gid, admin, nome};
   - `grupos/{gid}` {nome, codigo, admin, membros[]}, com as subcoleções `membros/{uid}`, `desafios/{did}/part/{uid}` e `mural/{mid}`.
@@ -86,6 +87,7 @@ O CheckFit é um app (PWA) de checklist diário de saúde: plano alimentar, águ
 - `testar`: notificação de teste.
 - `lembretesTick`: roda a cada 15 min (refeições, água, peso, sequência, cartas, remédios).
 - `lerPlano`: lê foto ou PDF do plano alimentar ou da ficha de treino com o Claude (modelo `claude-sonnet-5-5`, tools `salvar_plano`/`salvar_ficha`, max_tokens 32000, timeout de 540 s).
+- `estimarRefeicao` (v58): estima calorias de comida fora do plano a partir de descrição, peso/tamanho e foto opcional (modelo `claude-haiku-5-5`, tool `salvar_estimativa`, max_tokens 4000, timeout 90 s, limite de 15 por dia). Devolve `{ok, itens:[{nome, porcao, g, kcal, p, c, gd}], confianca, obs, dica, restantes}`. A foto não é guardada.
 - `avisarDesafio`: avisa os membros do grupo sobre um desafio novo.
 - **Como o app chama o servidor:** por `fetch` em `https://us-central1-dieta-alexandre.cloudfunctions.net/<nome>` com o token do usuário. Não usar o SDK de functions, porque ele quebra o service worker das notificações.
 
