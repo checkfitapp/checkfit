@@ -392,3 +392,87 @@ exports.avisarDesafio = onCall(async (req) => {
   }
   return {enviados};
 });
+
+/* ---------- Estimativa de calorias por IA (comida fora do plano): descrição, peso e foto opcional ---------- */
+const EST_MODELO = 'claude-haiku-5-5';
+const EST_LIMITE_DIA = 15;
+const EST_INSTRUCOES = `Você estima calorias de refeições para o app CheckFit, usado por brasileiros que seguem uma dieta e às vezes comem algo fora do plano.
+Regras:
+- Separe a refeição em itens (ex.: "maniçoba", "arroz branco", "farinha d'água"). No máximo 10 itens.
+- Para cada item, informe a porção em palavras simples (ex.: "1 prato fundo", "2 unidades médias", "copo de 500 ml"), os gramas (ou ml) e as calorias dessa porção.
+- Se a pessoa informou peso ou tamanho, use isso como prioridade. Se mandou foto, estime a porção pela foto (use prato, talheres, copo e mão como referência). Se não há peso nem foto, use uma porção típica e diga qual porção considerou.
+- Use como base a tabela TACO e porções típicas brasileiras. Conheça comidas regionais (ex.: do Pará: açaí com farinha, maniçoba, tacacá, vatapá, pato no tucupi, caruru, tapioca, X-caboquinho, unha de caranguejo; e de outras regiões), comida de rua, lanchonete e restaurante por quilo. Para redes de fast food, use os valores divulgados pela rede quando souber.
+- Considere o preparo: fritura, óleo, manteiga, molhos, queijo, açúcar em bebidas e sobremesas. Na dúvida sobre o preparo, use o mais comum no Brasil e diga isso na observação.
+- Proteína, carboidrato e gordura em gramas, aproximados.
+- confianca: "alta" quando há peso ou foto clara de um alimento simples; "media" no geral; "baixa" quando a descrição é vaga ou o prato tem muitos ingredientes escondidos.
+- observacao: uma frase curta e simples dizendo o que você considerou (ex.: "Considerei açaí sem açúcar e 3 colheres de farinha.").
+- dica: no máximo uma pergunta curta que deixaria a estimativa mais certa (ex.: "O açaí tinha açúcar ou granola?"). Se não precisar, deixe vazio.
+- Não dê sermão, não julgue a escolha e não dê orientação nutricional. Apenas estime.
+- Se a foto ou o texto não forem comida ou bebida, marque e_comida como false.
+- Responda SEMPRE chamando a ferramenta salvar_estimativa, uma única vez.`;
+const EST_SCHEMA = {
+  type: 'object',
+  properties: {
+    e_comida: {type: 'boolean'},
+    itens: {type: 'array', items: {type: 'object', properties: {
+      nome: {type: 'string'}, porcao: {type: 'string'}, gramas: {type: 'number'}, kcal: {type: 'number'},
+      proteina_g: {type: 'number'}, carbo_g: {type: 'number'}, gordura_g: {type: 'number'}}, required: ['nome', 'porcao', 'kcal']}},
+    confianca: {type: 'string', enum: ['alta', 'media', 'baixa']},
+    observacao: {type: 'string'},
+    dica: {type: 'string'}
+  },
+  required: ['e_comida', 'itens', 'confianca']
+};
+exports.estimarRefeicao = onCall({secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '256MiB'}, async (req) => {
+  const uid = req.auth && req.auth.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Entre no app primeiro.');
+  const d = req.data || {}, desc = String(d.descricao || '').trim().slice(0, 600), peso = String(d.peso || '').trim().slice(0, 80), foto = d.foto;
+  if (!desc && !foto) throw new HttpsError('invalid-argument', 'Descreva o que comeu ou mande uma foto.');
+  const conteudo = [];
+  if (foto) {
+    const tipo = String(foto.tipo || ''), dados = String(foto.dados || '');
+    if (!/^image\/(jpeg|png|webp)$/.test(tipo) || !dados) throw new HttpsError('invalid-argument', 'Foto em formato não aceito. Tente tirar de novo.');
+    if (dados.length > 4 * 1024 * 1024) throw new HttpsError('invalid-argument', 'Foto grande demais. Tente de novo.');
+    conteudo.push({type: 'image', source: {type: 'base64', media_type: tipo, data: dados}});
+  }
+  const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10), usoRef = db.doc(`iaUso/${uid}`);
+  const uso = await db.runTransaction(async (t) => {
+    const s = await t.get(usoRef), u = s.exists ? s.data() : {};
+    const n = u.estDia === hoje ? (u.estN || 0) : 0;
+    if (n >= EST_LIMITE_DIA) return -1;
+    t.set(usoRef, {estDia: hoje, estN: n + 1, estTotal: (u.estTotal || 0) + 1, estUltimo: Date.now()}, {merge: true});
+    return n + 1;
+  });
+  if (uso < 0) throw new HttpsError('resource-exhausted', `Você já fez ${EST_LIMITE_DIA} estimativas hoje. Amanhã libera de novo. Enquanto isso, use a busca na tabela TACO.`);
+  const ref = String(d.refeicao || '').slice(0, 40);
+  conteudo.push({type: 'text', text: `Estime as calorias${ref ? ' desta refeição (' + ref + ')' : ''}.\nO que a pessoa comeu: ${desc || '(veja a foto)'}\nPeso ou tamanho informado: ${peso || 'não informado'}`});
+  let resp;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'x-api-key': String(ANTHROPIC_API_KEY.value() || '').trim(), 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
+      body: JSON.stringify({model: EST_MODELO, max_tokens: 4000, system: EST_INSTRUCOES,
+        tools: [{name: 'salvar_estimativa', description: 'Salva a estimativa de calorias da refeição.', input_schema: EST_SCHEMA}],
+        tool_choice: {type: 'auto'}, messages: [{role: 'user', content: conteudo}]})
+    });
+    resp = await r.json().catch(() => ({}));
+    if (!r.ok) { console.error('EST erro', r.status, JSON.stringify(resp).slice(0, 400)); throw new Error('api ' + r.status + ' ' + ((resp.error && resp.error.type) || '')); }
+  } catch (e) {
+    console.error('EST falhou', String((e && e.message) || e).slice(0, 200));
+    await usoRef.set({estN: admin.firestore.FieldValue.increment(-1)}, {merge: true}).catch(() => {});
+    throw new HttpsError('unavailable', 'Não consegui estimar agora. Tente de novo em alguns minutos.');
+  }
+  const u_ = resp.usage || {};
+  await usoRef.set({estTokE: admin.firestore.FieldValue.increment(u_.input_tokens || 0), estTokS: admin.firestore.FieldValue.increment(u_.output_tokens || 0)}, {merge: true}).catch(() => {});
+  const bloco = (resp.content || []).find((c) => c.type === 'tool_use' && c.name === 'salvar_estimativa');
+  let r = bloco && bloco.input;
+  if (!r) { const txt = (resp.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n'), i = txt.indexOf('{'), j = txt.lastIndexOf('}'); if (i >= 0 && j > i) { try { r = JSON.parse(txt.slice(i, j + 1)); } catch (e) {} } }
+  if (!r) throw new HttpsError('internal', 'Não consegui entender a resposta. Tente descrever de outro jeito.');
+  const restantes = EST_LIMITE_DIA - uso;
+  if (r.e_comida === false) return {ok: false, motivo: 'nao-comida', restantes};
+  const num = (v, max) => { const n = Math.round(+v || 0); return Math.max(0, Math.min(max, n)); };
+  const itens = (r.itens || []).slice(0, 10).map((x) => ({nome: String(x.nome || '').trim().slice(0, 60), porcao: String(x.porcao || '').trim().slice(0, 60), g: num(x.gramas, 5000), kcal: num(x.kcal, 5000),
+    p: num(x.proteina_g, 500), c: num(x.carbo_g, 1000), gd: num(x.gordura_g, 500)})).filter((x) => x.nome);
+  if (!itens.length) return {ok: false, motivo: 'vazio', restantes};
+  return {ok: true, itens, confianca: ['alta', 'media', 'baixa'].includes(r.confianca) ? r.confianca : 'media', obs: String(r.observacao || '').slice(0, 220), dica: String(r.dica || '').slice(0, 160), restantes};
+});
