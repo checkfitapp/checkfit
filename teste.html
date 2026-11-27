@@ -5105,6 +5105,97 @@ function relInsights(D){
   if(!out.length) out.push(['Continue registrando: cada dia conta.', 'ok']);
   return out.slice(0, 5);
 }
+/* ---------- Relatório em imagem no formato de story do Instagram (1080 × 1920) ---------- */
+async function relStoryGerar(D){
+  try{ if(document.fonts && document.fonts.load){ await Promise.race([Promise.all([document.fonts.load('800 30px Montserrat'), document.fonts.load('400 16px Inter'), document.fonts.load('700 16px Inter')]), new Promise(r => setTimeout(r, 1500))]); } }catch(e){}
+  const {s, P, reg, pctPlano, pesoPts, dates, all, per} = D, kgs = v => String(Math.round(v * 10) / 10).replace('.', ',');
+  const W = 1080, H = 1920, M = 40, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'); x.fillStyle = '#F4F7F9'; x.fillRect(0, 0, W, H);
+  const sem = per === 'sem', pers = per === 'pers', ini = all[0], fim = all[all.length - 1], nome = (S.cli && S.cli.nome) || '', tot = dates.length || all.length;
+  const subt = sem || pers ? relIntervalo(ini, fim) : (MESES_PT[parse(ini).getMonth()][0].toUpperCase() + MESES_PT[parse(ini).getMonth()].slice(1) + ' de ' + parse(ini).getFullYear());
+  const card = (a, b, w, h, bg) => { x.save(); x.shadowColor = 'rgba(11,46,61,.08)'; x.shadowBlur = 18; x.shadowOffsetY = 4; x.fillStyle = bg || '#fff'; icRR(x, a, b, w, h, 26); x.fill(); x.restore(); x.strokeStyle = IC.line; x.lineWidth = 1.5; icRR(x, a, b, w, h, 26); x.stroke(); };
+  const corSt = st => st === 'plano' ? [IC.okBg, IC.okFg] : st === 'fora' ? [IC.warnBg, IC.warnFg] : st === 'andamento' ? ['#E8F0FB', '#2F5DA8'] : ['#EDF2F5', '#A9B8C0'];
+  /* ---- medidas de cada bloco ---- */
+  const topoH = 270, heroH = 250, tileH = 166, tilesH = tileH * 2 + 18, finH = 178, rodH = 44;
+  const lead = sem ? 0 : (parse(ini).getDay() + 6) % 7, nDias = all.length, rows = sem ? 1 : Math.ceil((lead + nDias) / 7);
+  const dest = relDestaques(D); let nDest = Math.min(3, dest.length);
+  const destLinhas = n => { let L = 0; dest.slice(0, n).forEach(([t]) => { L += icWrap(x, t, 0, 0, W - 2 * M - 120, 34, {s:27, dry:true}).n; }); return L; };
+  const destH = n => n ? 92 + destLinhas(n) * 34 + n * 14 + 16 : 0;
+  let ch = sem ? 150 : 64; const calH = () => 104 + rows * (ch + 8) + 52;
+  const fixo = () => topoH + heroH + tilesH + calH() + destH(nDest) + finH + rodH;
+  const GAPMIN = 22, nGaps = 6;
+  const cabe = () => fixo() + GAPMIN * nGaps <= H;
+  while(!cabe() && nDest > 2) nDest--;
+  while(!cabe() && ch > 40) ch -= 2;
+  while(!cabe() && nDest > 0) nDest--;
+  while(nDest < Math.min(5, dest.length) && fixo() + destH(nDest + 1) - destH(nDest) + GAPMIN * nGaps <= H - 60) nDest++;
+  const chMax = sem ? 210 : 104; while(ch < chMax && fixo() + 2 * rows + 30 * nGaps <= H) ch += 2;
+  const gap = Math.max(GAPMIN, (H - fixo()) / nGaps);
+  /* ---- cabeçalho ---- */
+  const hg = x.createLinearGradient(0, 0, W, topoH); hg.addColorStop(0, IC.navy); hg.addColorStop(1, IC.navy2); x.fillStyle = hg; x.fillRect(0, 0, W, topoH);
+  x.fillStyle = 'rgba(34,197,94,.45)'; x.beginPath(); x.moveTo(0, topoH); x.quadraticCurveTo(90, topoH - 44, 230, topoH); x.closePath(); x.fill();
+  icLogo(x, M, 44, 66); icT(x, 'Check', M + 80, 98, {s:44, w:800, h:1, c:'#fff'}); const cwc = x.measureText('Check').width; icT(x, 'Fit', M + 80 + cwc, 98, {s:44, w:800, h:1, c:IC.lime});
+  if(nome) icT(x, nome, W - M, 82, {s:28, w:800, h:1, c:'#fff', al:'right', max:440});
+  const fimR = dates.length ? dates[dates.length - 1] : fim, dm = d => d.slice(8, 10) + '/' + d.slice(5, 7);
+  icT(x, (ini === fimR ? '' : dm(ini) + ' a ') + dm(fimR) + '/' + fimR.slice(0, 4), W - M, 116, {s:23, c:'#D7ECEA', al:'right'});
+  icT(x, sem ? 'Relatório Semanal' : pers ? 'Relatório do Período' : 'Relatório Mensal', M, 186, {s:58, w:800, h:1, c:'#fff', max:W - 2 * M});
+  icT(x, subt, M, 236, {s:sem || pers ? 34 : 40, w:800, h:1, c:IC.lime, max:W - 2 * M});
+  let y = topoH + gap;
+  /* ---- destaque: peso ---- */
+  card(M, y, W - 2 * M, heroH);
+  if(s.wDelta != null){
+    const quer = P.meta && s.wEnd ? (P.meta < s.wEnd ? 'perder' : 'ganhar') : 'perder', bom = (s.wDelta <= 0) === (quer === 'perder'), cor = bom ? IC.dg : IC.badFg;
+    icEmoji(x, '⚖️', M + 52, y + 54, 38); icT(x, 'Variação de peso ' + D.noP, M + 86, y + 64, {s:28, w:700, c:IC.mut, max:430});
+    icT(x, (s.wDelta <= 0 ? '−' : '+') + kgs(Math.abs(s.wDelta)) + ' kg', M + 34, y + 170, {s:104, w:800, h:1, c:cor, max:470});
+    icT(x, (s.wEnd ? 'atual ' + kgs(s.wEnd) + ' kg' : '') + (P.meta ? '  ·  meta ' + kgs(P.meta) + ' kg' : ''), M + 36, y + 218, {s:26, c:IC.fg, max:470});
+    if(pesoPts.length > 1){ const gx = 560, gw = W - M - 36 - gx, gy = y + 52, gh = heroH - 108, vs = pesoPts.map(p => p.v); let lo = Math.min(...vs), hi = Math.max(...vs); if(hi - lo < 1){ lo -= .5; hi += .5; }
+      const d0 = parse(ini).getTime(), d1 = Math.max(parse(fim).getTime(), d0 + 1), X = d => gx + (parse(d).getTime() - d0) / (d1 - d0) * gw, Y = v => gy + gh - (v - lo) / (hi - lo) * gh;
+      const ar = x.createLinearGradient(0, gy, 0, gy + gh); ar.addColorStop(0, 'rgba(34,197,94,.28)'); ar.addColorStop(1, 'rgba(34,197,94,0)'); x.fillStyle = ar; x.beginPath(); x.moveTo(X(pesoPts[0].d), gy + gh); pesoPts.forEach(p => x.lineTo(X(p.d), Y(p.v))); x.lineTo(X(pesoPts[pesoPts.length - 1].d), gy + gh); x.closePath(); x.fill();
+      x.strokeStyle = IC.dg; x.lineWidth = 5; x.lineJoin = 'round'; x.lineCap = 'round'; x.beginPath(); pesoPts.forEach((p, k) => { k ? x.lineTo(X(p.d), Y(p.v)) : x.moveTo(X(p.d), Y(p.v)); }); x.stroke();
+      [pesoPts[0], pesoPts[pesoPts.length - 1]].forEach((p, k) => { x.fillStyle = IC.dg; x.beginPath(); x.arc(X(p.d), Y(p.v), 9, 0, Math.PI * 2); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(X(p.d), Y(p.v), 4, 0, Math.PI * 2); x.fill();
+        icT(x, kgs(p.v), X(p.d) + (k ? -16 : 16), Y(p.v) + (Y(p.v) > gy + gh * 0.6 ? -16 : 34), {s:22, w:800, c:IC.fg, al:k ? 'right' : 'left'}); });
+      icT(x, dCurta(pesoPts[0].d), gx, gy + gh + 36, {s:19, c:IC.mut}); icT(x, dCurta(pesoPts[pesoPts.length - 1].d), gx + gw, gy + gh + 36, {s:19, c:IC.mut, al:'right'}); }
+  } else {
+    icEmoji(x, '🍽️', M + 52, y + 54, 38); icT(x, ehHabitos() ? 'Hábitos feitos' : 'Refeições dentro do plano', M + 86, y + 64, {s:28, w:700, c:IC.mut});
+    icT(x, s.mealsTot ? pctPlano + '%' : '—', M + 34, y + 170, {s:104, w:800, h:1, c:IC.dg}); icT(x, 'Registre o peso para ver a evolução aqui.', M + 36, y + 218, {s:25, c:IC.mut});
+  }
+  y += heroH + gap;
+  /* ---- 6 números ---- */
+  const tw = (W - 2 * M - 2 * 18) / 3, pctReg = tot ? Math.round(reg / tot * 100) : 0;
+  const tiles = [['📅', reg + '/' + tot, 'dias registrados', null, pctReg], ['🍽️', s.mealsTot ? pctPlano + '%' : '—', ehHabitos() ? 'hábitos feitos' : 'refeições no plano'],
+    ['🍎', reg ? fmt(s.avg) : '—', 'kcal/dia · meta ' + fmt(REF), '#FFF8EC'], ['💧', s.waterAvg ? fmtL(s.waterAvg) + ' L' : '—', 'água/dia · meta ' + fmtL(WATER_GOAL) + ' L', '#EEF6FD'],
+    ['🏋️', String(s.trN || s.mu.feitos || 0), 'treinos ' + D.noP], s.deficit > 0 ? ['🔥', fmt(s.deficit), 'kcal de déficit', '#FFF1EC'] : ['🔥', fmt(s.trK), 'kcal em treinos', '#FFF1EC']];
+  tiles.forEach((t, k) => { const a = M + (k % 3) * (tw + 18), b = y + Math.floor(k / 3) * (tileH + 18); card(a, b, tw, tileH, t[3]);
+    icEmoji(x, t[0], a + 42, b + 44, 34);
+    if(t[4] != null){ const cx = a + tw - 48, cy = b + 46, r = 26; x.lineWidth = 9; x.strokeStyle = '#E6EEF2'; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke(); x.strokeStyle = IC.green; x.lineCap = 'round'; x.beginPath(); x.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, t[4] / 100)); x.stroke(); icT(x, t[4] + '%', cx, cy + 7, {s:17, w:800, al:'center'}); }
+    icT(x, t[1], a + 24, b + 114, {s:t[1].length > 6 ? 46 : 54, w:800, h:1, c:IC.fg, max:tw - 40});
+    icT(x, t[2], a + 24, b + 148, {s:21, c:IC.mut, max:tw - 40}); });
+  y += tilesH + gap;
+  /* ---- calendário (mês/período) ou semana ---- */
+  const cH = calH(); card(M, y, W - 2 * M, cH);
+  icT(x, sem ? 'Como foi cada dia' : 'Como foi cada dia do ' + (pers ? 'período' : 'mês'), M + 30, y + 58, {s:32, w:800, h:1, c:IC.navy});
+  const csM = {}; s.cs.forEach(c => csM[c.d] = c); const cwid = (W - 2 * M - 60 - 6 * 8) / 7, gy0 = y + 104 - (sem ? 0 : 0);
+  if(!sem) ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].forEach((l, k) => icT(x, l, M + 30 + k * (cwid + 8) + cwid / 2, gy0 - 10, {s:19, w:700, c:IC.mut, al:'center'}));
+  all.forEach((d, i) => { const c = csM[d] || {d, c:{status:'vazio', kcal:0}}, p = lead + i, cx = M + 30 + (p % 7) * (cwid + 8), cy = gy0 + Math.floor(p / 7) * (ch + 8), fut = d > today(), [bg, fg] = fut ? ['#F7F9FA', '#C9D3D8'] : corSt(c.c.status);
+    x.fillStyle = bg; icRR(x, cx, cy, cwid, ch, 14); x.fill();
+    if(sem){ icT(x, parse(d).toLocaleDateString('pt-BR', {weekday:'short'}).replace('.', ''), cx + cwid / 2, cy + 40, {s:22, w:700, c:fg, al:'center'}); icT(x, String(parse(d).getDate()), cx + cwid / 2, cy + 88, {s:40, w:800, h:1, c:fg, al:'center'});
+      if(!fut && c.c.status !== 'vazio') icT(x, fmt(c.c.kcal), cx + cwid / 2, cy + ch - 22, {s:21, w:700, c:fg, al:'center'}); }
+    else { icT(x, String(parse(d).getDate()), cx + 12, cy + Math.min(30, ch * 0.42), {s:Math.min(22, ch * 0.32), w:800, c:fg});
+      if(!fut && c.c.status !== 'vazio' && ch >= 52) icT(x, fmt(c.c.kcal), cx + cwid - 10, cy + ch - 12, {s:Math.min(18, ch * 0.24), w:700, c:fg, al:'right'}); } });
+  const ly = gy0 + rows * (ch + 8) + 26; [['Fiz tudo', IC.okBg], ['Dia parcial', IC.warnBg], ['Em andamento', '#E8F0FB'], ['Sem registro', '#EDF2F5']].forEach(([l, bg], k) => { const lx = M + 30 + k * 240; x.fillStyle = bg; icRR(x, lx, ly - 18, 24, 24, 6); x.fill(); icT(x, l, lx + 34, ly + 2, {s:20, c:IC.mut}); });
+  y += cH + gap;
+  /* ---- destaques ---- */
+  if(nDest){ const dH = destH(nDest); card(M, y, W - 2 * M, dH, '#ECF8F0'); icT(x, '🏅 Destaques', M + 30, y + 58, {s:32, w:800, h:1, c:IC.navy});
+    let yy = y + 104; dest.slice(0, nDest).forEach(([t, k]) => { icCheck(x, M + 52, yy - 10, 17, k); const r = icWrap(x, t, M + 86, yy, W - 2 * M - 120, 34, {s:27}); yy = r.y + 14; });
+    y += dH + gap; }
+  /* ---- faixa final ---- */
+  const fin = [['🏆', String(s.plano), 'dias com tudo feito'], ['💧', String(s.waterDays || 0), 'dias com a meta de água'], ['⭐', String(s.best), 'melhor sequência']];
+  const fg2 = x.createLinearGradient(0, 0, W, 0); fg2.addColorStop(0, IC.navy); fg2.addColorStop(1, '#14532D'); x.fillStyle = fg2; icRR(x, M, y, W - 2 * M, finH, 28); x.fill();
+  const fw = (W - 2 * M) / 3; fin.forEach(([e, v, l], k) => { const a = M + k * fw; if(k){ x.fillStyle = 'rgba(255,255,255,.22)'; x.fillRect(a, y + 34, 2, finH - 68); }
+    icEmoji(x, e, a + fw / 2, y + 46, 40); icT(x, v, a + fw / 2, y + 116, {s:46, w:800, h:1, c:'#fff', al:'center', max:fw - 30}); icT(x, l, a + fw / 2, y + 152, {s:21, c:'#CFE9DC', al:'center', max:fw - 24}); });
+  icT(x, 'checkfitapp.com.br', W / 2, H - 22, {s:22, w:700, c:IC.mut, al:'center'});
+  return cv;
+}
 async function relImgGerar(D, a4){
   try{ if(document.fonts && document.fonts.load){ await Promise.race([Promise.all([document.fonts.load('800 30px Montserrat'), document.fonts.load('400 16px Inter'), document.fonts.load('700 16px Inter')]), new Promise(r => setTimeout(r, 1500))]); } }catch(e){}
   const {s, P, reg, pctPlano, pesoPts, pIni, porRef, grp, cargas, nota, dates, all, per} = D, kgs = v => String(Math.round(v * 10) / 10).replace('.', ',');
@@ -5296,7 +5387,7 @@ async function relImgPrep(){
   const D = relDados(), tag = D.per + '|' + D.all[0] + '|' + D.all.length + '|' + D.dates.length + '|' + JSON.stringify(D.dates.map(d => (S.days[d] || {})._t || 0)) + '|' + D.nota + '|' + JSON.stringify(S.prof);
   if(S.relImg && S.relImg.tag === tag) return; S.relImg = {tag, loading:true}; render();
   try{
-    const cv = await relImgGerar(D), blob = await cvBlob(cv), nome = ('Relatorio-' + (D.per === 'sem' ? 'semanal' : D.per === 'pers' ? 'personalizado' : 'mensal') + '-CheckFit-' + D.all[0].split('-').reverse().join('-') + (D.per === 'pers' ? '-a-' + D.all[D.all.length - 1].split('-').reverse().join('-') : '') + '.png');
+    const cv = await relStoryGerar(D), blob = await cvBlob(cv), nome = ('Relatorio-' + (D.per === 'sem' ? 'semanal' : D.per === 'pers' ? 'personalizado' : 'mensal') + '-CheckFit-' + D.all[0].split('-').reverse().join('-') + (D.per === 'pers' ? '-a-' + D.all[D.all.length - 1].split('-').reverse().join('-') : '') + '.png');
     let file = null; try{ file = new File([blob], nome, {type:'image/png'}); }catch(e){}
     if(S.relImg && S.relImg.url) try{ URL.revokeObjectURL(S.relImg.url); }catch(e){}
     S.relImg = {tag, url:URL.createObjectURL(blob), nome, file, share:!!(file && navigator.canShare && navigator.canShare({files:[file]}))};
