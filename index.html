@@ -341,12 +341,13 @@ details.medd summary{cursor:pointer;font-weight:900;min-height:32px;display:flex
 .rep .wchart{width:100%;height:auto}
 @media(max-width:420px){.rgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.rtwo{grid-template-columns:1fr}}
 @media print{
- @page{margin:12mm}
+ @page{margin:9mm}
  html,body{background:#fff!important}
  body{padding:0!important}
  .top,#tabs,#navbar,.noprint,.banner,#toast,#restbar{display:none!important}
  .wrap{max-width:none!important;padding:0!important}
- .rep{border:0;border-radius:0;padding:0;margin:0;font-size:11px}
+ .rep{border:0;border-radius:0;padding:0;margin:0;font-size:9.5px}
+ .rep .rt td,.rep .rt th{padding:2px 5px!important}.rep .rs{margin:8px 0!important}.rep h2{font-size:12px!important;margin:6px 0 4px!important}
  .rgrid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.rtwo{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)!important}
  .rs h2{break-after:avoid}
  tr{break-inside:avoid}
@@ -1758,7 +1759,7 @@ function relView(){
      ${s.cs.map(x => { const dd = S.days[x.d] || {}, ms = sessoes(x.d).filter(z => z.fim).length; return `<tr class="${x.c.status}"><td>${parse(x.d).toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit'})}</td><td>${x.c.status === 'vazio' ? '—' : fmt(x.c.kcal)}</td><td>${x.c.water ? fmtL(x.c.water) + ' L' : '—'}</td><td>${x.c.tr.min || ms ? (x.c.tr.min ? fmt(x.c.tr.min) + ' min' : '') + (ms ? (x.c.tr.min ? ' · ' : '') + 'musc.' : '') : '—'}</td><td>${+dd.peso > 0 ? kgs(+dd.peso) : '—'}</td><td>${stTxt(x.c.status)}</td></tr>`; }).join('')}</tbody></table></section>
    ${rg.base ? `<section class="rs"><h2>Como os registros foram feitos</h2>
      <table class="rt"><tr><th>No próprio dia</th><td>${rg.dia} dia${rg.dia === 1 ? '' : 's'}</td></tr><tr><th>Completados depois</th><td>${rg.compl} dia${rg.compl === 1 ? '' : 's'}</td></tr><tr><th>Preenchidos só depois</th><td>${rg.depois} dia${rg.depois === 1 ? '' : 's'}</td></tr>${rg.sem ? `<tr><th>Sem essa informação</th><td>${rg.sem} dia${rg.sem === 1 ? '' : 's'} (registros anteriores a esse controle)</td></tr>` : ''}</table>
-     ${rg.lista.length ? `<p class="rnote">Dias preenchidos depois: ${rg.lista.map(x => dCurta(x.d) + ' (' + (x.t === 'compl' ? 'completado' : 'preenchido') + ' até ' + x.atraso + ' dia' + (x.atraso > 1 ? 's' : '') + ' depois)').join(' · ')}.</p>` : ''}
+     ${rg.lista.length ? `<p class="rnote">Dias preenchidos ou completados depois: ${rg.lista.length > 8 ? rg.lista.map(x => x.d.slice(8, 10)).join(', ') + ' (' + dCurta(rg.lista[0].d).replace(/^\d+\s*/, '') + ')' : rg.lista.map(x => dCurta(x.d) + ' (' + x.atraso + ' dia' + (x.atraso > 1 ? 's' : '') + ' depois)').join(' · ')}.</p>` : ''}
      <p class="rnote">Registros feitos até as 10h do dia seguinte contam como feitos no próprio dia.</p></section>` : ''}
    <section class="rs"${nota.trim() ? '' : ' hidden'}><h2>Observações do paciente</h2><p class="rnota" id="rel-nota-print">${esc(nota)}</p></section>
    <footer class="rf">Dados registrados pelo próprio usuário no app CheckFit. Calorias aproximadas (tabela TACO e rótulos). Este relatório não substitui avaliação profissional.</footer>
@@ -1768,19 +1769,18 @@ function relView(){
 
 /* ---------- Gerador de PDF próprio (desenha o relatório em páginas A4 e monta o arquivo) ---------- */
 const PDFC = {fg:'#0B2E3D', muted:'#4D6672', line:'#D9E2E7', accent:'#0B2E3D', ok:'#2f7d32', bad:'#b3261e', water:'#1f6fb2', fire:'#c2410c', surface:'#ffffff', warn:'#a15c00'};
-const PG = {W:1190, H:1684, M:70};
+const PG = {W:1190, H:1684, M:54, f:1};
 const PFONT = '-apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif';
 function pcol(c){ if(!c || c === 'none') return null; const m = String(c).match(/var\(--([a-z-]+)\)/); return m ? (PDFC[m[1]] || PDFC.fg) : c; }
 function PdfDoc(){ this.pages = []; this.newPage(); }
 PdfDoc.prototype.newPage = function(){
-  const c = document.createElement('canvas'); c.width = PG.W; c.height = PG.H;
-  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, PG.W, PG.H); x.textBaseline = 'alphabetic';
+  const c = document.createElement('canvas'); c.width = Math.round(PG.W * PG.f); c.height = Math.round(PG.H * PG.f);
+  const x = c.getContext('2d'); x.scale(PG.f, PG.f); x.fillStyle = '#fff'; x.fillRect(0, 0, PG.W, PG.H); x.textBaseline = 'alphabetic';
   this.c = c; this.x = x; this.y = PG.M; this.pages.push(c);
-  this.font(17); x.fillStyle = PDFC.muted; x.textAlign = 'right'; x.fillText('CheckFit · página ' + this.pages.length, PG.W - PG.M, PG.H - 36); x.textAlign = 'left';
 };
 PdfDoc.prototype.font = function(size, bold){ this.x.font = (bold ? '700 ' : '400 ') + size + 'px ' + PFONT; };
-PdfDoc.prototype.room = function(){ return PG.H - PG.M - 30 - this.y; };
-PdfDoc.prototype.ensure = function(h){ if(h > this.room()){ this.newPage(); return true; } return false; };
+PdfDoc.prototype.room = function(){ return PG.H - PG.M - 14 - this.y; };
+PdfDoc.prototype.ensure = function(h){ if(this.semQuebra) return false; if(h > this.room()){ this.newPage(); return true; } return false; };
 PdfDoc.prototype.wrap = function(t, maxW, size, bold){
   this.font(size, bold); const out = [];
   String(t).split('\n').forEach(par => {
@@ -1801,18 +1801,18 @@ PdfDoc.prototype.para = function(t, o){
   this.y += o.after != null ? o.after : 6;
 };
 PdfDoc.prototype.hline = function(color, wpx){ this.x.fillStyle = color || PDFC.line; this.x.fillRect(PG.M, this.y, PG.W - 2 * PG.M, wpx || 2); this.y += (wpx || 2); };
-PdfDoc.prototype.h2 = function(t){ this.ensure(110); this.y += 8; this.font(23, true); this.x.fillStyle = PDFC.accent; this.x.fillText(t.toUpperCase(), PG.M, this.y + 23); this.y += 38; };
-PdfDoc.prototype.h3 = function(t){ this.ensure(80); this.y += 6; this.font(20, true); this.x.fillStyle = PDFC.fg; this.x.fillText(t, PG.M, this.y + 20); this.y += 32; };
+PdfDoc.prototype.h2 = function(t){ this.ensure(96); this.y += 4; this.font(19, true); this.x.fillStyle = PDFC.accent; this.x.fillText(t.toUpperCase(), PG.M, this.y + 19); this.y += 29; };
+PdfDoc.prototype.h3 = function(t){ this.ensure(70); this.y += 4; this.font(16, true); this.x.fillStyle = PDFC.fg; this.x.fillText(t, PG.M, this.y + 16); this.y += 25; };
 PdfDoc.prototype.tiles = function(items){
   const cols = 4, gap = 12, w = (PG.W - 2 * PG.M - gap * (cols - 1)) / cols;
   for(let i = 0; i < items.length; i += cols){
-    const row = items.slice(i, i + cols), lab = row.map(it => this.wrap(it[1], w - 24, 16));
-    const h = 22 + 34 + Math.max(...lab.map(l => l.length)) * 21 + 12; this.ensure(h);
+    const row = items.slice(i, i + cols), lab = row.map(it => this.wrap(it[1], w - 20, 13));
+    const h = 16 + 26 + Math.max(...lab.map(l => l.length)) * 17 + 10; this.ensure(h);
     row.forEach((it, j) => { const x0 = PG.M + j * (w + gap), x = this.x;
-      x.strokeStyle = PDFC.line; x.lineWidth = 2; pRound(x, x0, this.y, w, h, 14); x.stroke();
-      this.font(30, true); x.fillStyle = PDFC.fg; x.fillText(it[0], x0 + 12, this.y + 44);
-      this.font(16); x.fillStyle = PDFC.muted; lab[j].forEach((l, k) => x.fillText(l, x0 + 12, this.y + 70 + k * 21)); });
-    this.y += h + gap;
+      x.strokeStyle = PDFC.line; x.lineWidth = 2; pRound(x, x0, this.y, w, h, 12); x.stroke();
+      this.font(24, true); x.fillStyle = PDFC.fg; x.fillText(it[0], x0 + 10, this.y + 34);
+      this.font(13); x.fillStyle = PDFC.muted; lab[j].forEach((l, k) => x.fillText(l, x0 + 10, this.y + 56 + k * 17)); });
+    this.y += h + 8;
   }
 };
 function pRound(x, a, b, w, h, r){ x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
@@ -1820,20 +1820,20 @@ PdfDoc.prototype.table = function(tbl, x0, w, startY){
   const rowsEl = [...tbl.querySelectorAll('tr')], head = rowsEl.filter(r => r.parentElement.tagName === 'THEAD');
   const cellTxt = c => c.textContent.replace(/\s+/g, ' ').trim();
   const rows = rowsEl.map(r => ({el:r, head:head.includes(r), cells:[...r.children].map(c => ({t:cellTxt(c), th:c.tagName === 'TH'}))}));
-  const nc = Math.max(...rows.map(r => r.cells.length)), size = 18, pad = 10, lh = 23;
+  const nc = Math.max(...rows.map(r => r.cells.length)), size = 14, pad = 7, lh = 18;
   const nat = Array(nc).fill(40);
   rows.forEach(r => r.cells.forEach((c, i) => { this.font(size, c.th || r.head); nat[i] = Math.max(nat[i], Math.min(this.x.measureText(c.t).width + 2 * pad + 10, w * 0.6)); }));
   const sum = nat.reduce((a, b) => a + b, 0); const cw = nat.map(v => sum > w ? v * w / sum : v * (w / sum));
   if(startY != null) this.y = startY;
   const drawRow = r => {
-    const lines = r.cells.map((c, i) => this.wrap(c.t, cw[i] - 2 * pad, size, c.th || r.head)), h = Math.max(1, ...lines.map(l => l.length)) * lh + 12;
+    const lines = r.cells.map((c, i) => this.wrap(c.t, cw[i] - 2 * pad, size, c.th || r.head)), h = Math.max(1, ...lines.map(l => l.length)) * lh + 7;
     if(this.ensure(h) && !r.head && head.length && x0 === PG.M) head.forEach(hr => drawRow(rows.find(z => z.el === hr)));
     let cx = x0; const st = r.el.className || '';
     r.cells.forEach((c, i) => { this.x.fillStyle = r.head || c.th ? PDFC.muted : (i === r.cells.length - 1 && st === 'plano') ? PDFC.ok : (i === r.cells.length - 1 && st === 'fora') ? PDFC.bad : PDFC.fg;
-      this.font(size, (r.head || c.th) && r.head); lines[i].forEach((l, k) => this.x.fillText(l, cx + pad, this.y + 6 + size + k * lh)); cx += cw[i]; });
-    this.y += h; this.x.fillStyle = PDFC.line; this.x.fillRect(x0, this.y - 1, w, 1.5);
+      this.font(size, (r.head || c.th) && r.head); lines[i].forEach((l, k) => this.x.fillText(l, cx + pad, this.y + 3 + size + k * lh)); cx += cw[i]; });
+    this.y += h; this.x.fillStyle = PDFC.line; this.x.fillRect(x0, this.y - 1, w, 1.2);
   };
-  rows.forEach(drawRow); this.y += 10;
+  rows.forEach(drawRow); this.y += 6;
 };
 PdfDoc.prototype.svg = function(svg, x0, w, startY){
   const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : {width:340, height:150};
@@ -1852,31 +1852,64 @@ PdfDoc.prototype.svg = function(svg, x0, w, startY){
   });
   return oy + h;
 };
-function pdfRender(rep){
-  const D = new PdfDoc(), full = PG.W - 2 * PG.M;
-  const hd = rep.querySelector('.rh');
-  if(hd){ D.font(18, true); D.x.fillStyle = PDFC.accent; D.x.fillText('CheckFit', PG.M, D.y + 18); D.y += 30;
-    const h1 = hd.querySelector('h1'); if(h1) D.para(h1.textContent.trim(), {size:34, bold:true, after:4});
-    hd.querySelectorAll('.rmeta').forEach(m => D.para(m.textContent.replace(/\s+/g, ' ').trim(), {size:18, color:PDFC.muted, after:0}));
-    D.y += 10; D.hline(PDFC.accent, 3); D.y += 16; }
-  rep.querySelectorAll(':scope > section.rs').forEach(sec => {
-    if(sec.hidden) return;
-    [...sec.children].forEach(el => {
-      const t = el.tagName;
-      if(t === 'H2'){ const nx = el.nextElementSibling; if(nx && nx.tagName.toLowerCase() === 'svg' && nx.viewBox){ const vb = nx.viewBox.baseVal; D.ensure(70 + vb.height * full / vb.width); } D.h2(el.textContent.trim()); }
-      else if(t === 'H3'){ const nx = el.nextElementSibling; if(nx && nx.tagName.toLowerCase() === 'svg' && nx.viewBox){ const vb = nx.viewBox.baseVal; D.ensure(60 + vb.height * full / vb.width); } D.h3(el.textContent.trim()); }
-      else if(el.classList.contains('rgrid')) D.tiles([...el.children].map(c => [((c.querySelector(':scope > b') || {}).textContent || '').trim(), ((c.querySelector(':scope > span') || {}).textContent || '').replace(/\s+/g, ' ').trim()]));
-      else if(el.classList.contains('rtwo')){ const sv = el.querySelector('svg'), tb = el.querySelector('table'), lw = Math.round(full * 0.6);
-        const vb = sv && sv.viewBox.baseVal, hh = sv ? vb.height * lw / vb.width : 0; D.ensure(Math.max(hh, 200) + 10); const y0 = D.y;
-        const yA = sv ? D.svg(sv, PG.M, lw, y0) : y0; let yB = y0; if(tb){ D.table(tb, PG.M + lw + 24, full - lw - 24, y0 + 10); yB = D.y; } D.y = Math.max(yA, yB) + 10; }
-      else if(t === 'TABLE') D.table(el, PG.M, full);
-      else if(t === 'svg' || t === 'SVG') { D.y = D.svg(el, PG.M, full) + 10; }
-      else if(t === 'P') D.para(el.textContent.replace(/[ \t]+/g, ' ').trim(), {size:18, color:el.classList.contains('rnota') ? PDFC.fg : PDFC.muted, bar:el.classList.contains('rnota')});
-    });
-    D.y += 12;
+function pdfSecao(D, sec, full){
+  const els = [...sec.children], dd = sec.querySelector('table.dd');
+  els.forEach(el => {
+    const t = el.tagName;
+    if(t === 'H2') D.h2(el.textContent.trim());
+    else if(t === 'H3') D.h3(el.textContent.trim());
+    else if(el.classList.contains('rgrid')) D.tiles([...el.children].map(c => [((c.querySelector(':scope > b') || {}).textContent || '').trim(), ((c.querySelector(':scope > span') || {}).textContent || '').replace(/\s+/g, ' ').trim()]));
+    else if(el.classList.contains('rtwo')){ const sv = el.querySelector('svg'), tb = el.querySelector('table'), lw = Math.round(full * 0.5);
+      const vb = sv && sv.viewBox.baseVal, hh = sv ? vb.height * lw / vb.width : 0; D.ensure(Math.max(hh, 180) + 10); const y0 = D.y;
+      const yA = sv ? D.svg(sv, PG.M, lw, y0) : y0; let yB = y0; if(tb){ D.table(tb, PG.M + lw + 24, full - lw - 24, y0 + 10); yB = D.y; } D.y = Math.max(yA, yB) + 10; }
+    else if(t === 'TABLE' && el === dd && D.duasCol){
+      const linhas = [...el.querySelectorAll('tbody tr')], gap = 22, hw = (full - gap) / 2, meio = Math.ceil(linhas.length / 2);
+      const parte = L => { const c = el.cloneNode(true), tb = c.querySelector('tbody'); tb.innerHTML = ''; L.forEach(r => tb.appendChild(r.cloneNode(true))); return c; };
+      const y0 = D.y; D.table(parte(linhas.slice(0, meio)), PG.M, hw, y0); const y1 = D.y; D.table(parte(linhas.slice(meio)), PG.M + hw + gap, hw, y0); D.y = Math.max(y1, D.y); }
+    else if(t === 'TABLE') D.table(el, PG.M, full);
+    else if(t === 'svg' || t === 'SVG') D.y = D.svg(el, PG.M, full) + 10;
+    else if(t === 'P') D.para(el.textContent.replace(/[ \t]+/g, ' ').trim(), {size:14, color:el.classList.contains('rnota') ? PDFC.fg : PDFC.muted, bar:el.classList.contains('rnota')});
   });
-  const ft = rep.querySelector('.rf'); if(ft){ D.ensure(70); D.hline(); D.y += 10; D.para(ft.textContent.trim(), {size:16, color:PDFC.muted}); }
+}
+/* mede a altura de um bloco desenhando numa página "infinita" */
+function pdfMede(fn){ const D = pdfMede.D || (pdfMede.D = new PdfDoc()); if(D.f !== PG.f){ D.pages = []; D.newPage(); D.f = PG.f; } D.y = PG.M; D.semQuebra = true; D.duasCol = false; fn(D); D.duasCol = false; return D.y - PG.M; }
+function pdfRender(rep){
+  const full = PG.W - 2 * PG.M, hd = rep.querySelector('.rh'), ft = rep.querySelector('.rf');
+  const titulo = hd && hd.querySelector('h1') ? hd.querySelector('h1').textContent.trim() : 'Relatório', nome = hd && hd.querySelector('.rmeta') ? hd.querySelector('.rmeta').textContent.split('·')[0].trim() : '';
+  const cab = D => { D.font(18, true); D.x.fillStyle = PDFC.accent; D.x.fillText('CheckFit', PG.M, D.y + 18); D.y += 28;
+    if(hd){ D.para(titulo, {size:28, bold:true, after:2}); hd.querySelectorAll('.rmeta').forEach(m => D.para(m.textContent.replace(/\s+/g, ' ').trim(), {size:15, color:PDFC.muted, after:0})); }
+    D.y += 8; D.hline(PDFC.accent, 3); D.y += 10; };
+  const cabCurto = D => { D.font(15, true); D.x.fillStyle = PDFC.accent; D.x.fillText('CheckFit', PG.M, D.y + 15); const w0 = D.x.measureText('CheckFit  ').width; D.font(15); D.x.fillStyle = PDFC.muted;
+    D.x.fillText(titulo + (nome ? ' · ' + nome : ''), PG.M + w0, D.y + 15); D.y += 24; D.hline(PDFC.line, 2); D.y += 12; };
+  const rod = D => { D.hline(); D.y += 8; D.para(ft.textContent.trim(), {size:13, color:PDFC.muted, after:0}); };
+  const secs = [...rep.querySelectorAll(':scope > section.rs')].filter(s => !s.hidden);
+  const dd = rep.querySelector('table.dd'), util = PG.H - 2 * PG.M - 10;
+  const hCab = pdfMede(cab), hCurto = pdfMede(cabCurto), hRod = ft ? pdfMede(rod) + 6 : 0, GAP = 14;
+  const alturas = secs.map(sec => { let h = pdfMede(D => pdfSecao(D, sec, full)); if(dd && sec.contains(dd) && h > util * 0.92){ const h2 = pdfMede(D => { D.duasCol = true; pdfSecao(D, sec, full); }); sec._duas = true; h = h2; } else sec._duas = false; return h; });
+  /* distribui os tópicos inteiros pelas páginas */
+  const pags = [[]]; let livre = util - hCab;
+  secs.forEach((sec, i) => { const h = alturas[i] + GAP; if(h > livre && pags[pags.length - 1].length){ pags.push([]); livre = util - hCurto; } pags[pags.length - 1].push(i); livre -= h; });
+  const usado = p => p.reduce((a, i) => a + alturas[i] + GAP, 0);
+  let ultLivre = util - (pags.length === 1 ? hCab : hCurto) - usado(pags[pags.length - 1]);
+  if(ft && ultLivre < hRod){ pags.push([]); }
+  /* desenha, espalhando a sobra para a página ficar cheia */
+  const D = new PdfDoc();
+  pags.forEach((p, k) => {
+    if(k) D.newPage(); if(k === 0) cab(D); else cabCurto(D);
+    const ultima = k === pags.length - 1, sobra = util - (k ? hCurto : hCab) - usado(p) - (ultima ? hRod : 0);
+    const extra = p.length > 1 ? Math.max(0, Math.min(ultima ? 40 : 90, sobra / p.length)) : 0;
+    p.forEach(i => { const sec = secs[i], cabe = alturas[i] + GAP <= D.room(); D.semQuebra = cabe; D.duasCol = sec._duas; pdfSecao(D, sec, full); D.semQuebra = false; D.duasCol = false; D.y += GAP + extra; });
+  });
+  if(ft){ D.y = Math.max(D.y, PG.M + util - hRod); rod(D); }
+  const T = D.pages.length; D.pages.forEach((c, i) => { const x = c.getContext('2d'); x.save(); x.setTransform(PG.f, 0, 0, PG.f, 0, 0); x.font = '400 15px ' + PFONT; x.fillStyle = PDFC.muted; x.textAlign = 'right'; x.fillText('CheckFit · página ' + (i + 1) + ' de ' + T, PG.W - PG.M, PG.H - 22); x.restore(); });
   return D.pages;
+}
+/* escolhe o maior tamanho de letra que preenche as páginas: 1 página se couber grande, senão 2 páginas cheias */
+function pdfRenderFit(rep){
+  const base = {W:1190, H:1684, M:54, f:1}, tenta = f => { PG.f = f; PG.W = base.W / f; PG.H = base.H / f; PG.M = base.M / f; return pdfRender(rep); };
+  const maior = (alvo, lo, hi) => { let best = null; if(tenta(lo).length > alvo) return null; best = lo; for(let i = 0; i < 7; i++){ const m = (lo + hi) / 2; if(tenta(m).length <= alvo){ best = m; lo = m; } else hi = m; } return best; };
+  let f = maior(1, 1.05, 1.6); if(f == null) f = maior(2, 0.8, 1.6); if(f == null) f = 0.8;
+  const pages = tenta(f); Object.assign(PG, base); return pages;
 }
 function pdfBlob(pages){
   const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
@@ -1895,13 +1928,25 @@ function pdfBlob(pages){
   push('trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
   return new Blob(parts, {type:'application/pdf'});
 }
+async function relPdfCor(){
+  const t = document.getElementById('rel-nota'); if(t) relSetNota(t.value);
+  if(S.relPdfCor && S.relPdfCor.url) try{ URL.revokeObjectURL(S.relPdfCor.url); }catch(e){}
+  S.relPdfCor = {loading:true}; render(); await new Promise(r => setTimeout(r, 60));
+  try{
+    const D = relDados(), pages = await relImgGerar(D, true), blob = pdfBlob(pages);
+    const nome = 'Relatorio-' + (D.per === 'sem' ? 'semanal' : D.per === 'pers' ? 'personalizado' : 'mensal') + '-CheckFit-' + D.all[0].split('-').reverse().join('-') + (D.per === 'pers' ? '-a-' + D.all[D.all.length - 1].split('-').reverse().join('-') : '') + '-colorido.pdf';
+    let file = null; try{ file = new File([blob], nome, {type:'application/pdf'}); }catch(e){}
+    S.relPdfCor = {url:URL.createObjectURL(blob), nome, file, p:pages.length, kb:Math.round(blob.size / 1024), share:!!(file && navigator.canShare && navigator.canShare({files:[file]}))};
+  }catch(e){ console.error(e); S.relPdfCor = {erro:true}; }
+  render();
+}
 async function relPdf(){
   const rep = document.querySelector('.rep'), btn = document.getElementById('rel-pdf'); if(!rep) return;
   const t = document.getElementById('rel-nota'); if(t) relSetNota(t.value);
   if(btn){ btn.disabled = true; btn.textContent = 'Gerando o PDF…'; }
   await new Promise(r => setTimeout(r, 60));
   try{
-    const blob = pdfBlob(pdfRender(rep)), d0 = parse(S.date);
+    const blob = pdfBlob(pdfRenderFit(rep)), d0 = parse(S.date);
     const nome = S.pdfNome || (S.relPer === 'pers' && S.mode === 'rel' ? 'Relatorio-CheckFit-' + relPersIntervalo().map(d => d.split('-').reverse().join('-')).join('-a-') + '.pdf' : S.relPer === 'sem' && S.mode === 'rel' ? 'Relatorio-semanal-CheckFit-' + weekStart(S.date).split('-').reverse().join('-') + '.pdf' : 'Relatorio-CheckFit-' + d0.toLocaleDateString('pt-BR', {month:'long'}) + '-' + d0.getFullYear() + '.pdf').normalize('NFD').replace(/[̀-ͯ]/g, '');
     if(S.relPdf && S.relPdf.url) try{ URL.revokeObjectURL(S.relPdf.url); }catch(e){}
     let file = null; try{ file = new File([blob], nome, {type:'application/pdf'}); }catch(e){}
@@ -1915,12 +1960,14 @@ async function relShare(){
 }
 function relPdfBox(){
   const R = S.relPdf;
-  if(!R) return `<button class="primary" id="rel-pdf" data-act="relpdf" style="width:100%;margin-top:10px">Gerar PDF</button>`;
+  const cor = S.relPdfCor, corBox = cor && cor.url ? `<div class="relok" style="margin-top:8px"><b>PDF colorido pronto</b> <span class="sub">(${cor.p} página${cor.p > 1 ? 's' : ''}, ${cor.kb} KB)</span><div class="row" style="margin-top:6px">${cor.share ? '<button class="primary" data-act="relcorshare">Salvar ou enviar</button>' : ''}<a class="${cor.share ? 'ghost' : 'primary'} relbtnl" href="${cor.url}" download="${esc(cor.nome)}" target="_blank" rel="noopener">Abrir PDF colorido</a></div></div>` : cor && cor.erro ? '<p class="lmsg">Não consegui montar o PDF colorido neste aparelho. Use o PDF simples.</p>' : '';
+  const corBtn = `<button class="${R ? 'ghost' : 'primary'}" id="rel-cor" data-act="relcor" style="width:100%;margin-top:10px" ${cor && cor.loading ? 'disabled' : ''}>${cor && cor.loading ? 'Montando o PDF colorido…' : '🎨 PDF colorido (igual à imagem)'}</button>` + corBox;
+  if(!R) return corBtn + `<button class="ghost" id="rel-pdf" data-act="relpdf" style="width:100%;margin-top:8px">PDF simples (preto e branco)</button>`;
   if(R.erro) return `<button class="primary" id="rel-pdf" data-act="relpdf" style="width:100%;margin-top:10px">Tentar de novo</button><p class="lmsg">Não consegui gerar o PDF neste aparelho. Use o botão Imprimir abaixo.</p>`;
   return `<div class="relok"><b>PDF pronto</b> <span class="sub">(${R.kb} KB)</span>
     <div class="row" style="margin-top:8px">${R.share ? `<button class="primary" id="rel-share" data-act="relshare">Salvar ou enviar</button>` : ''}<a class="${R.share ? 'ghost' : 'primary'} relbtnl" id="rel-dl" href="${R.url}" download="${esc(R.nome)}" target="_blank" rel="noopener">${R.share ? 'Abrir PDF' : 'Baixar PDF'}</a>
     <button class="ghost" id="rel-pdf" data-act="relpdf">Gerar de novo</button></div>
-    <p class="tip" style="margin:8px 0 0">${R.share ? 'Em "Salvar ou enviar", escolha <b>Salvar em Arquivos</b>, WhatsApp ou e-mail.' : 'Se abrir o PDF numa nova tela, toque no ícone de compartilhar para salvar ou enviar.'} Se mudar as observações, toque em "Gerar de novo".</p></div>`;
+    <p class="tip" style="margin:8px 0 0">${R.share ? 'Em "Salvar ou enviar", escolha <b>Salvar em Arquivos</b>, WhatsApp ou e-mail.' : 'Se abrir o PDF numa nova tela, toque no ícone de compartilhar para salvar ou enviar.'} Se mudar as observações, toque em "Gerar de novo".</p></div>` + corBtn;
 }
 
 /* ---------- Fase 1: menu inferior, Início, Planos, Perfil, registro rápido e tema ---------- */
@@ -5058,10 +5105,10 @@ function relInsights(D){
   if(!out.length) out.push(['Continue registrando: cada dia conta.', 'ok']);
   return out.slice(0, 5);
 }
-async function relImgGerar(D){
+async function relImgGerar(D, a4){
   try{ if(document.fonts && document.fonts.load){ await Promise.race([Promise.all([document.fonts.load('800 30px Montserrat'), document.fonts.load('400 16px Inter'), document.fonts.load('700 16px Inter')]), new Promise(r => setTimeout(r, 1500))]); } }catch(e){}
   const {s, P, reg, pctPlano, pesoPts, pIni, porRef, grp, cargas, nota, dates, all, per} = D, kgs = v => String(Math.round(v * 10) / 10).replace('.', ',');
-  const W = 1080, SC = 2, Hmax = 3600, cv = document.createElement('canvas'); cv.width = W * SC; cv.height = Hmax * SC;
+  const W = 1080, PH = Math.round(1080 * 1.4142), SC = a4 ? 1.5 : 2, Hmax = a4 ? PH * 3 : 3600, cv = document.createElement('canvas'); cv.width = W * SC; cv.height = Hmax * SC;
   const x = cv.getContext('2d'); x.scale(SC, SC); x.fillStyle = '#F4F7F9'; x.fillRect(0, 0, W, Hmax);
   const sem = per === 'sem', pers = per === 'pers', ini = all[0], fim = all[all.length - 1], nome = (S.cli && S.cli.nome) || '';
   // ---- cabeçalho
@@ -5112,7 +5159,8 @@ async function relImgGerar(D){
   });
   y += th + 22;
   const Lx = 24, Lw = 664, Rx = 704, Rw = W - 24 - 704;
-  const linha = (blocos) => { const h = Math.max(...blocos.map(b => b.h)); blocos.forEach(b => b.draw(b.a, y, b.w, h)); y += h + 18; };
+  const filas = []; let nPag = 1;
+  const linha = (blocos) => { const h = Math.max(...blocos.map(b => b.h)); if(a4){ filas.push({blocos, h}); return; } blocos.forEach(b => b.draw(b.a, y, b.w, h)); y += h + 18; };
   // ---- peso + destaques
   const dest = relDestaques(D);
   const pesoBloco = {a:Lx, w:Lw, h:pesoPts.length ? 372 : 140, draw:(a, b, w, h) => {
@@ -5211,6 +5259,23 @@ async function relImgGerar(D){
   // ---- observações
   if(nota && nota.trim()){ let hh = 70; hh += icWrap(x, nota.trim(), 0, 0, W - 48 - 44, 21, {s:15.5, dry:true}).n * 21;
     linha([{a:24, w:W - 48, h:hh + 10, draw:(a, b, w, h) => { const yy = rpPanel(x, a, b, w, h, 'Observações do paciente'); icWrap(x, nota.trim(), a + 22, yy + 10, w - 44, 21, {s:15.5}); }}]); }
+  if(a4){
+    const finH = 124 + 22 + 30, cabH = 100, GAP = 18, topoH = y, titA4 = (sem ? 'Relatório Semanal' : pers ? 'Relatório Personalizado' : 'Relatório Mensal') + ' · ' + subt;
+    const cabA4 = top => { const g = x.createLinearGradient(0, 0, W, 0); g.addColorStop(0, IC.navy); g.addColorStop(1, IC.navy2); x.fillStyle = g; x.fillRect(0, top, W, 78);
+      icLogo(x, 30, top + 16, 46); icT(x, 'Check', 84, top + 50, {s:28, w:800, h:1, c:'#fff'}); const cw2 = x.measureText('Check').width; icT(x, 'Fit', 84 + cw2, top + 50, {s:28, w:800, h:1, c:IC.lime});
+      icT(x, titA4, W - 30, top + 40, {s:19, w:800, h:1, c:'#fff', al:'right', max:640}); if(nome) icT(x, nome, W - 30, top + 62, {s:14.5, c:'#D7ECEA', al:'right', max:640}); };
+    const pags = [[]]; let base = 0, py = topoH;
+    filas.forEach(f => { if(py + f.h > base + PH - 28 && pags[pags.length - 1].length){ pags.push([]); base += PH; py = base + cabH; } pags[pags.length - 1].push(f); py += f.h + GAP; });
+    if(py + finH > base + PH - 8){ pags.push([]); base += PH; py = base + cabH; }
+    if(pags.length > 3) pags.splice(3);
+    const livreDe = k => (k + 1) * PH - (k === pags.length - 1 ? finH + 10 : 26) - (k ? k * PH + cabH : topoH) - pags[k].reduce((a, f) => a + f.h + GAP, 0);
+    for(let k = pags.length - 1; k > 0; k--){ while(pags[k - 1].length > 1){ const f = pags[k - 1][pags[k - 1].length - 1], A = livreDe(k - 1), B = livreDe(k), d = f.h + GAP;
+      if(B - d < 0 || Math.abs((A + d) - (B - d)) >= Math.abs(A - B)) break; pags[k].unshift(pags[k - 1].pop()); } }
+    pags.forEach((p, k) => { const top = k * PH; if(k) cabA4(top); let yy = k ? top + cabH : topoH; const ult = k === pags.length - 1;
+      const livre = top + PH - (ult ? finH + 10 : 26) - yy - p.reduce((a, f) => a + f.h + GAP, 0), ex = p.length ? Math.max(0, livre) / p.length : 0, gx = Math.min(ex, 34), st = Math.min(ex - gx, 240);
+      p.forEach(f => { const h = f.h + st; f.blocos.forEach(b => b.draw(b.a, yy, b.w, h)); yy += h + GAP + gx; }); });
+    nPag = pags.length; y = nPag * PH - finH;
+  }
   // ---- faixa final
   const fin = [];
   if(P.meta && pIni && s.wEnd && pIni.v !== +P.meta){ const pr = Math.max(0, Math.min(1, (pIni.v - s.wEnd) / (pIni.v - P.meta))); fin.push(['🏆', 'Progresso geral', Math.round(pr * 100) + '%', 'da meta de peso alcançada']); }
@@ -5223,6 +5288,7 @@ async function relImgGerar(D){
   const fw = (W - 48) / 3; fin.forEach(([e, l, v, sub], k) => { const a = 24 + k * fw; if(k){ x.fillStyle = 'rgba(255,255,255,.25)'; x.fillRect(a, y + 24, 1.5, 76); } icEmoji(x, e, a + 44, y + 62, 36); icT(x, l, a + 80, y + 40, {s:16, w:700, c:'#fff', max:fw - 92}); icT(x, v, a + 80, y + 78, {s:30, w:800, h:1, c:'#fff', max:fw - 92}); icT(x, sub, a + 80, y + 102, {s:13.5, c:'#D7ECEA', max:fw - 92}); });
   y += 124 + 22;
   icT(x, 'Gerado pelo app CheckFit · checkfitapp.com.br · dados registrados pelo próprio usuário · não substitui avaliação profissional', W / 2, y + 6, {s:12.5, c:IC.mut, al:'center', max:W - 48});
+  if(a4){ const pg = []; for(let k = 0; k < nPag; k++){ const c = document.createElement('canvas'); c.width = Math.round(W * SC); c.height = Math.round(PH * SC); c.getContext('2d').drawImage(cv, 0, Math.round(k * PH * SC), c.width, c.height, 0, 0, c.width, c.height); pg.push(c); } return pg; }
   const H = Math.ceil(y + 26), out = document.createElement('canvas'); out.width = W * SC; out.height = H * SC; out.getContext('2d').drawImage(cv, 0, 0);
   return out;
 }
@@ -6530,6 +6596,8 @@ document.addEventListener('click',e=>{
   if(a==='biorelback'){S.mode='app'; S.tab='evol'; S.pdfNome=null; render(); window.scrollTo(0,0); return;}
   if(a==='relback'){S.mode='app'; render(); window.scrollTo(0,0); return;}
   if(a==='relpdf'){ relPdf(); return;}
+  if(a==='relcor'){ relPdfCor(); return;}
+  if(a==='relcorshare'){ const R=S.relPdfCor; if(R&&R.file) navigator.share({files:[R.file], title:'Relatório CheckFit'}).catch(()=>{}); return;}
   if(a==='relshare'){ relShare(); return;}
   if(a==='relprint'){ const t=document.getElementById('rel-nota'); if(t) relSetNota(t.value); try{ window.print(); }catch(err){} return;}
   if(a==='aed'){A.selfMsg=''; if(b.dataset.u) edOpen(b.dataset.u,b.dataset.k); return;}
